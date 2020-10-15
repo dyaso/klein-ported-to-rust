@@ -1,15 +1,17 @@
 mod detail;
-mod plane;
-mod point;
+mod dual;
+mod join;
 mod line;
 mod meet;
-mod join;
-mod dual;
+mod plane;
+mod point;
+mod inner_product;
+mod mat4x4;
 
-pub use plane::Plane;
-pub use point::Point;
-pub use line::{Line,Branch,IdealLine};
 pub use dual::Dual;
+pub use line::{Branch, IdealLine, Line};
+pub use plane::{Plane};
+pub use point::Point;
 
 #[cfg(test)]
 mod tests {

@@ -3,6 +3,28 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+// DP high components and caller ignores returned high components
+#[inline]
+pub fn hi_dp_ss(a: __m128, b: __m128) -> __m128 {
+    unsafe {
+        // 0 1 2 3 -> 1 + 2 + 3, 0, 0, 0
+
+        let mut res: __m128 = _mm_mul_ps(a, b);
+
+        // 0 1 2 3 -> 1 1 3 3
+        let hi = _mm_movehdup_ps(res);
+
+        // 0 1 2 3 + 1 1 3 3 -> (0 + 1, 1 + 1, 2 + 3, 3 + 3)
+        let sum = _mm_add_ps(hi, res);
+
+        // unpacklo: 0 0 1 1
+        res = _mm_add_ps(sum, _mm_unpacklo_ps(res, res));
+
+        // (1 + 2 + 3, _, _, _)
+        return _mm_movehl_ps(res, res);
+    }
+}
+
 /// Reciprocal with an additional single Newton-Raphson refinement
 #[inline]
 pub fn rcp_nr1(a: __m128) -> __m128 {

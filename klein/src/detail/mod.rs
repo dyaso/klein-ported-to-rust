@@ -1,3 +1,4 @@
 pub mod sse;
-pub mod sandwich;
 pub mod exterior_product;
+pub mod inner_product;
+pub mod sandwich;

@@ -3,162 +3,165 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-// // ReSharper disable InconsistentNaming
+/// File: sandwich.hpp
+/// Purpose: Define functions of the form swAB where A and B are partition
+/// indices. Each function so-defined computes the sandwich operator using vector
+/// intrinsics. The partition index determines which basis elements are present
+/// in each XMM component of the operand.
+///
+/// Notes:
+/// 1. The first argument is always the TARGET which is the multivector to apply
+///    the sandwich operator to.
+/// 2. The second operator MAY be a bivector or motor (sandwiching with
+///    a point or vector isn't supported at this time).
+/// 3. For efficiency, the sandwich operator is NOT implemented in terms of two
+///    geometric products and a reversion. The result is nevertheless equivalent.
 
-// using System.Runtime.CompilerServices;
-// using System.Runtime.InteropServices.WindowsRuntime;
-// using __m128 = System.Runtime.Intrinsics.Vector128<float>;
-// using static KleinSharp.Simd;
-
-// namespace KleinSharp
-// {
-// 	// File: sandwich.hpp
-// 	// Purpose: Define functions of the form swAB where A and B are partition
-// 	// indices. Each function so-defined computes the sandwich operator using vector
-// 	// intrinsics. The partition index determines which basis elements are present
-// 	// in each XMM component of the operand.
-// 	//
-// 	// Notes:
-// 	// 1. The first argument is always the TARGET which is the multivector to apply
-// 	//    the sandwich operator to.
-// 	// 2. The second operator MAY be a bivector or motor (sandwiching with
-// 	//    a point or vector isn't supported at this time).
-// 	// 3. For efficiency, the sandwich operator is NOT implemented in terms of two
-// 	//    geometric products and a reversion. The result is nevertheless equivalent.
-// 	internal static partial class Detail
-// 	{
-// 		// Partition memory layouts
-// 		//     LSB --> MSB
-// 		// p0: (e0, e1, e2, e3)
-// 		// p1: (1, e23, e31, e12)
-// 		// p2: (e0123, e01, e02, e03)
-// 		// p3: (e123, e032, e013, e021)
+/// Partition memory layouts
+///     LSB --> MSB
+/// p0: (e0, e1, e2, e3)
+/// p1: (1, e23, e31, e12)
+/// p2: (e0123, e01, e02, e03)
+/// p3: (e123, e032, e013, e021)
 
 /// Reflect a plane through another plane
 /// b * a * b
 #[inline]
-pub fn sw00(a: __m128, b: __m128, p0_out: &mut __m128)
-{
-	// (2a0(a2 b2 + a3 b3 + a1 b1) - b0(a1^2 + a2^2 + a3^2)) e0 +
-	// (2a1(a2 b2 + a3 b3)         + b1(a1^2 - a2^2 - a3^2)) e1 +
-	// (2a2(a3 b3 + a1 b1)         + b2(a2^2 - a3^2 - a1^2)) e2 +
-	// (2a3(a1 b1 + a2 b2)         + b3(a3^2 - a1^2 - a2^2)) e3
+pub fn sw00(a: __m128, b: __m128, p0_out: &mut __m128) {
+    // (2a0(a2 b2 + a3 b3 + a1 b1) - b0(a1^2 + a2^2 + a3^2)) e0 +
+    // (2a1(a2 b2 + a3 b3)         + b1(a1^2 - a2^2 - a3^2)) e1 +
+    // (2a2(a3 b3 + a1 b1)         + b2(a2^2 - a3^2 - a1^2)) e2 +
+    // (2a3(a1 b1 + a2 b2)         + b3(a3^2 - a1^2 - a2^2)) e3
 
-unsafe{	let a_zzwy = _mm_shuffle_ps(a, a, 122 /* 1, 3, 2, 2 */);
-	let a_wwyz = _mm_shuffle_ps(a, a, 159 /* 2, 1, 3, 3 */);
+    unsafe {
+        let a_zzwy = _mm_shuffle_ps(a, a, 122 /* 1, 3, 2, 2 */);
+        let a_wwyz = _mm_shuffle_ps(a, a, 159 /* 2, 1, 3, 3 */);
 
-	// Left block
-	let mut tmp = _mm_mul_ps(a_zzwy, _mm_shuffle_ps(b, b, 122 /* 1, 3, 2, 2 */));
-	tmp = _mm_add_ps(tmp, _mm_mul_ps(a_wwyz, _mm_shuffle_ps(b, b, 159 /* 2, 1, 3, 3 */)));
+        // Left block
+        let mut tmp = _mm_mul_ps(a_zzwy, _mm_shuffle_ps(b, b, 122 /* 1, 3, 2, 2 */));
+        tmp = _mm_add_ps(
+            tmp,
+            _mm_mul_ps(a_wwyz, _mm_shuffle_ps(b, b, 159 /* 2, 1, 3, 3 */)),
+        );
 
-	let a1 = _mm_movehdup_ps(a);
-	let b1 = _mm_movehdup_ps(b);
-	tmp = _mm_add_ss(tmp, _mm_mul_ss(a1, b1));
-	tmp = _mm_mul_ps(tmp, _mm_add_ps(a, a));
+        let a1 = _mm_movehdup_ps(a);
+        let b1 = _mm_movehdup_ps(b);
+        tmp = _mm_add_ss(tmp, _mm_mul_ss(a1, b1));
+        tmp = _mm_mul_ps(tmp, _mm_add_ps(a, a));
 
-	// Right block
-	let a_yyzw = _mm_shuffle_ps(a, a, 229 /* 3, 2, 1, 1 */);
-	let mut tmp2 = _mm_xor_ps(_mm_mul_ps(a_yyzw, a_yyzw), _mm_set_ss(-0.0));
-	tmp2 = _mm_sub_ps(tmp2, _mm_mul_ps(a_zzwy, a_zzwy));
-	tmp2 = _mm_sub_ps(tmp2, _mm_mul_ps(a_wwyz, a_wwyz));
-	tmp2 = _mm_mul_ps(tmp2, b);
+        // Right block
+        let a_yyzw = _mm_shuffle_ps(a, a, 229 /* 3, 2, 1, 1 */);
+        let mut tmp2 = _mm_xor_ps(_mm_mul_ps(a_yyzw, a_yyzw), _mm_set_ss(-0.0));
+        tmp2 = _mm_sub_ps(tmp2, _mm_mul_ps(a_zzwy, a_zzwy));
+        tmp2 = _mm_sub_ps(tmp2, _mm_mul_ps(a_wwyz, a_wwyz));
+        tmp2 = _mm_mul_ps(tmp2, b);
 
-	*p0_out = _mm_add_ps(tmp, tmp2);
-}}
+        *p0_out = _mm_add_ps(tmp, tmp2);
+    }
+}
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static void sw10(__m128 a, __m128 b, out __m128 p1, out __m128 p2)
-// 		{
-// 			//                       b0(a1^2 + a2^2 + a3^2) +
-// 			// (2a3(a1 b1 + a2 b2) + b3(a3^2 - a1^2 - a2^2)) e12 +
-// 			// (2a1(a2 b2 + a3 b3) + b1(a1^2 - a2^2 - a3^2)) e23 +
-// 			// (2a2(a3 b3 + a1 b1) + b2(a2^2 - a3^2 - a1^2)) e31 +
-// 			//
-// 			// 2a0(a1 b2 - a2 b1) e03
-// 			// 2a0(a2 b3 - a3 b2) e01 +
-// 			// 2a0(a3 b1 - a1 b3) e02 +
+#[inline] pub fn sw10(a:__m128, b:__m128, p1:&mut __m128, p2:&mut __m128)		{
+	//                       b0(a1^2 + a2^2 + a3^2) +
+	// (2a3(a1 b1 + a2 b2) + b3(a3^2 - a1^2 - a2^2)) e12 +
+	// (2a1(a2 b2 + a3 b3) + b1(a1^2 - a2^2 - a3^2)) e23 +
+	// (2a2(a3 b3 + a1 b1) + b2(a2^2 - a3^2 - a1^2)) e31 +
+	//
+	// 2a0(a1 b2 - a2 b1) e03
+	// 2a0(a2 b3 - a3 b2) e01 +
+	// 2a0(a3 b1 - a1 b3) e02 +
 
-// 			__m128 a_zyzw = _mm_swizzle_ps(a, 230 /* 3, 2, 1, 2 */);
-// 			__m128 a_ywyz = _mm_swizzle_ps(a, 157 /* 2, 1, 3, 1 */);
-// 			__m128 a_wzwy = _mm_swizzle_ps(a, 123 /* 1, 3, 2, 3 */);
+    unsafe {
+    	let a_zyzw :__m128 = _mm_shuffle_ps(a,a, 230 /* 3, 2, 1, 2 */);
+    	let a_ywyz :__m128 = _mm_shuffle_ps(a,a, 157 /* 2, 1, 3, 1 */);
+    	let a_wzwy :__m128 = _mm_shuffle_ps(a,a, 123 /* 1, 3, 2, 3 */);
 
-// 			__m128 b_xzwy = _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */);
+    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
 
-// 			__m128 two_zero = _mm_set_ps(2f, 2f, 2f, 0f);
-// 			p1 = _mm_mul_ps(a, b);
-// 			p1 = _mm_add_ps(p1, _mm_mul_ps(a_wzwy, b_xzwy));
-// 			p1 = _mm_mul_ps(p1, _mm_mul_ps(a_ywyz, two_zero));
+    	let two_zero :__m128 = _mm_set_ps(2., 2., 2., 0.);
+    	*p1 = _mm_mul_ps(a, b);
+    	*p1 = _mm_add_ps(*p1, _mm_mul_ps(a_wzwy, b_xzwy));
+    	*p1 = _mm_mul_ps(*p1, _mm_mul_ps(a_ywyz, two_zero));
 
-// 			__m128 tmp = _mm_mul_ps(a_zyzw, a_zyzw);
-// 			tmp = _mm_add_ps(tmp, _mm_mul_ps(a_wzwy, a_wzwy));
-// 			tmp = _mm_xor_ps(tmp, _mm_set_ss(-0f));
-// 			tmp = _mm_sub_ps(_mm_mul_ps(a_ywyz, a_ywyz), tmp);
-// 			tmp = _mm_mul_ps(_mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */), tmp);
+    	let mut tmp:__m128 = _mm_mul_ps(a_zyzw, a_zyzw);
+    	tmp = _mm_add_ps(tmp, _mm_mul_ps(a_wzwy, a_wzwy));
+    	tmp = _mm_xor_ps(tmp, _mm_set_ss(-0.));
+    	tmp = _mm_sub_ps(_mm_mul_ps(a_ywyz, a_ywyz), tmp);
+    	tmp = _mm_mul_ps(_mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */), tmp);
 
-// 			p1 = _mm_swizzle_ps(_mm_add_ps(p1, tmp), 120 /* 1, 3, 2, 0 */);
+        let um = _mm_add_ps(*p1, tmp);
+    	*p1 = _mm_shuffle_ps(um,um, 120 /* 1, 3, 2, 0 */);
 
-// 			p2 = _mm_mul_ps(a_zyzw, b_xzwy);
-// 			p2 = _mm_sub_ps(p2, _mm_mul_ps(a_wzwy, b));
-// 			p2 = _mm_mul_ps(p2, _mm_mul_ps(_mm_swizzle_ps(a, 0 /* 0, 0, 0, 0 */), two_zero));
-// 			p2 = _mm_swizzle_ps(p2, 120 /* 1, 3, 2, 0 */);
-// 		}
-
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 sw20(__m128 a, __m128 b)
-// 		{
-// 			//                       -b0(a1^2 + a2^2 + a3^2) e0123 +
-// 			// (-2a3(a1 b1 + a2 b2) + b3(a1^2 + a2^2 - a3^2)) e03
-// 			// (-2a1(a2 b2 + a3 b3) + b1(a2^2 + a3^2 - a1^2)) e01 +
-// 			// (-2a2(a3 b3 + a1 b1) + b2(a3^2 + a1^2 - a2^2)) e02 +
-
-// 			__m128 a_zzwy = _mm_swizzle_ps(a, 122 /* 1, 3, 2, 2 */);
-// 			__m128 a_wwyz = _mm_swizzle_ps(a, 159 /* 2, 1, 3, 3 */);
-
-// 			var p2 = _mm_mul_ps(a, b);
-// 			p2 = _mm_add_ps(p2, _mm_mul_ps(a_zzwy, _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */)));
-// 			p2 = _mm_mul_ps(
-// 				p2, _mm_mul_ps(a_wwyz, _mm_set_ps(-2f, -2f, -2f, 0f)));
-
-// 			__m128 a_yyzw = _mm_swizzle_ps(a, 229 /* 3, 2, 1, 1 */);
-// 			__m128 tmp = _mm_mul_ps(a_yyzw, a_yyzw);
-// 			tmp = _mm_xor_ps(
-// 				_mm_set_ss(-0f), _mm_add_ps(tmp, _mm_mul_ps(a_zzwy, a_zzwy)));
-// 			tmp = _mm_sub_ps(tmp, _mm_mul_ps(a_wwyz, a_wwyz));
-// 			p2 = _mm_add_ps(p2, _mm_mul_ps(tmp, _mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */)));
-// 			p2 = _mm_swizzle_ps(p2, 120 /* 1, 3, 2, 0 */);
-
-// 			return p2;
-// 		}
+    	*p2 = _mm_mul_ps(a_zyzw, b_xzwy);
+    	*p2 = _mm_sub_ps(*p2, _mm_mul_ps(a_wzwy, b));
+    	*p2 = _mm_mul_ps(*p2, _mm_mul_ps(_mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */), two_zero));
+    	*p2 = _mm_shuffle_ps(*p2,*p2, 120 /* 1, 3, 2, 0 */);
+    }
+}
 
 #[inline]
-pub fn sw30(a: __m128, b: __m128) -> __m128
-{
-	//                                b0(a1^2 + a2^2 + a3^2)  e123 +
-	// (-2a1(a0 b0 + a3 b3 + a2 b2) + b1(a2^2 + a3^2 - a1^2)) e032 +
-	// (-2a2(a0 b0 + a1 b1 + a3 b3) + b2(a3^2 + a1^2 - a2^2)) e013 +
-	// (-2a3(a0 b0 + a2 b2 + a1 b1) + b3(a1^2 + a2^2 - a3^2)) e021
-unsafe{
-	let a_zwyz = _mm_shuffle_ps(a, a, 158 /* 2, 1, 3, 2 */);
-	let a_yzwy = _mm_shuffle_ps(a, a, 121 /* 1, 3, 2, 1 */);
+pub fn sw20(a:__m128 ,b: __m128) ->__m128		{
+			//                       -b0(a1^2 + a2^2 + a3^2) e0123 +
+			// (-2a3(a1 b1 + a2 b2) + b3(a1^2 + a2^2 - a3^2)) e03
+			// (-2a1(a2 b2 + a3 b3) + b1(a2^2 + a3^2 - a1^2)) e01 +
+			// (-2a2(a3 b3 + a1 b1) + b2(a3^2 + a1^2 - a2^2)) e02 +
 
-	let mut p3_out
-		= _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */), _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */));
-	p3_out
-		= _mm_add_ps(p3_out, _mm_mul_ps(a_zwyz, _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */)));
-	p3_out
-		= _mm_add_ps(p3_out, _mm_mul_ps(a_yzwy, _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */)));
-	p3_out = _mm_mul_ps(
-		p3_out, _mm_mul_ps(a, _mm_set_ps(-2.0, -2.0, -2.0, 0.0)));
+    unsafe {
+		let a_zzwy :__m128 = _mm_shuffle_ps(a,a, 122 /* 1, 3, 2, 2 */);
+		let a_wwyz :__m128 = _mm_shuffle_ps(a,a, 159 /* 2, 1, 3, 3 */);
 
-	let mut tmp = _mm_mul_ps(a_yzwy, a_yzwy);
-	tmp = _mm_add_ps(tmp, _mm_mul_ps(a_zwyz, a_zwyz));
-	let a_wyzw = _mm_shuffle_ps(a, a, 231 /* 3, 2, 1, 3 */);
-	tmp = _mm_sub_ps(
-		tmp, _mm_xor_ps(_mm_mul_ps(a_wyzw, a_wyzw), _mm_set_ss(-0.0)));
+		let mut p2 = _mm_mul_ps(a, b);
+		p2 = _mm_add_ps(p2, _mm_mul_ps(a_zzwy, _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */)));
+		p2 = _mm_mul_ps(
+			p2, _mm_mul_ps(a_wwyz, _mm_set_ps(-2., -2., -2., 0.)));
 
-	p3_out = _mm_add_ps(p3_out, _mm_mul_ps(b, tmp));
+		let a_yyzw :__m128 = _mm_shuffle_ps(a,a, 229 /* 3, 2, 1, 1 */);
+		let mut tmp :__m128 = _mm_mul_ps(a_yyzw, a_yyzw);
+		tmp = _mm_xor_ps(
+			_mm_set_ss(-0.), _mm_add_ps(tmp, _mm_mul_ps(a_zzwy, a_zzwy)));
+		tmp = _mm_sub_ps(tmp, _mm_mul_ps(a_wwyz, a_wwyz));
+		p2 = _mm_add_ps(p2, _mm_mul_ps(tmp, _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */)));
+		p2 = _mm_shuffle_ps(p2,p2, 120 /* 1, 3, 2, 0 */);
 
-	return p3_out;}
+		return p2
+	}
+}
+
+#[inline]
+pub fn sw30(a: __m128, b: __m128) -> __m128 {
+    //                                b0(a1^2 + a2^2 + a3^2)  e123 +
+    // (-2a1(a0 b0 + a3 b3 + a2 b2) + b1(a2^2 + a3^2 - a1^2)) e032 +
+    // (-2a2(a0 b0 + a1 b1 + a3 b3) + b2(a3^2 + a1^2 - a2^2)) e013 +
+    // (-2a3(a0 b0 + a2 b2 + a1 b1) + b3(a1^2 + a2^2 - a3^2)) e021
+    unsafe {
+        let a_zwyz = _mm_shuffle_ps(a, a, 158 /* 2, 1, 3, 2 */);
+        let a_yzwy = _mm_shuffle_ps(a, a, 121 /* 1, 3, 2, 1 */);
+
+        let mut p3_out = _mm_mul_ps(
+            _mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */),
+            _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */),
+        );
+        p3_out = _mm_add_ps(
+            p3_out,
+            _mm_mul_ps(a_zwyz, _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */)),
+        );
+        p3_out = _mm_add_ps(
+            p3_out,
+            _mm_mul_ps(a_yzwy, _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */)),
+        );
+        p3_out = _mm_mul_ps(p3_out, _mm_mul_ps(a, _mm_set_ps(-2.0, -2.0, -2.0, 0.0)));
+
+        let mut tmp = _mm_mul_ps(a_yzwy, a_yzwy);
+        tmp = _mm_add_ps(tmp, _mm_mul_ps(a_zwyz, a_zwyz));
+        let a_wyzw = _mm_shuffle_ps(a, a, 231 /* 3, 2, 1, 3 */);
+        tmp = _mm_sub_ps(
+            tmp,
+            _mm_xor_ps(_mm_mul_ps(a_wyzw, a_wyzw), _mm_set_ss(-0.0)),
+        );
+
+        p3_out = _mm_add_ps(p3_out, _mm_mul_ps(b, tmp));
+
+        return p3_out;
+    }
 }
 
 // 		// Apply a translator to a plane.

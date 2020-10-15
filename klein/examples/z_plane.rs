@@ -12,7 +12,7 @@ use druid::{
     Data, MouseEvent
 };
 
-use klein::{Plane, Point,
+use klein::{Plane, Point, Line
 	};
 
 #[derive(Default)]
@@ -74,14 +74,47 @@ impl CustomWidget {
             bottom = center_y - half_height;
         }
 
-        self.lower_plane  = Plane::new( 0., -1., 0., bottom as f32);
-        self.upper_plane  = Plane::new( 0., -1., 0., self.top  as f32);
-        self.left_plane   = Plane::new(-1.,  0., 0., self.left as f32);
-        self.right_plane  = Plane::new(-1.,  0., 0., right  as f32);
+        self.lower_plane  = Plane::new(0., 1., 0., bottom as f32);
+        self.upper_plane  = Plane::new(0., 1., 0., self.top  as f32);
+        self.left_plane   = Plane::new(1.,  0., 0., self.left as f32);
+        self.right_plane  = Plane::new(1.,  0., 0., right  as f32);
 
         self.center_point = Point::new(center_x as f32, center_y as f32, 0.);
     }
 
+    fn dist(a :&Point, b :&Point) -> f32 {
+        let d = (a.normalized() & b.normalized()).norm();
+println!("dist: {}",d);
+
+        return if f32::is_nan(d) {1000000.} else {d}
+    }
+
+    pub fn draw_line(&self, ctx: &mut PaintCtx, line: &Line) {
+        let mut intersections = Vec::<Point>::new();
+        intersections.push(*line ^ self.lower_plane);
+        intersections.push(*line ^ self.upper_plane);
+        intersections.push(*line ^ self.left_plane);
+        intersections.push(*line ^ self.right_plane);
+
+        intersections.sort_by(|a,b| CustomWidget::dist(a, &self.center_point)
+                                        .partial_cmp(
+                                            &CustomWidget::dist(b, &self.center_point)).unwrap());
+
+        let end1 = &intersections[0].normalized();
+        let end2 = &intersections[1].normalized();
+self.draw_point(ctx,end1);
+self.draw_point(ctx,end2);
+        let mut path = BezPath::new();
+        path.move_to(DruidPoint::new(
+            ((end1.x() as f64 - self.left) / self.scale),
+            ((self.top - end1.y()  as f64) / self.scale)));
+        path.line_to(DruidPoint::new(
+            ((end2.x() as f64 - self.left) / self.scale), 
+            ((self.top - end2.y() as f64)  / self.scale)));
+        let stroke_color = Color::rgb8(150,150,150);
+        ctx.stroke(path, &stroke_color, 1.0);
+
+    }
 
     pub fn draw_point(&self, ctx: &mut PaintCtx, point: &Point) {
         let fill_color = Color::rgba8(0xa3, 0xff, 0xff, 0xFF);
@@ -97,6 +130,20 @@ impl CustomWidget {
         );
 
     }
+
+    pub fn mouse_move(&self, mouse: &MouseEvent) {
+        let x_portion = (mouse.pos.x / self.window_pixels.width);
+        let x_coord = self.left_plane.x()*self.left_plane.d()*(1.-x_portion as f32) + (self.right_plane.x()*self.right_plane.d())*x_portion as f32;
+        let y_portion = (mouse.pos.y / self.window_pixels.height);
+        let y_coord = self.upper_plane.y()*self.upper_plane.d()*(1.-y_portion as f32) + self.lower_plane.y()*self.lower_plane.d()*y_portion as f32;
+        // let mouse_point = (x_plane^y_plane.normalized()^PGA3D::e3());
+        // let mouse_y = mouse.pos.y;
+        // let y_plane = 
+        println!("plane {} {}",self.upper_plane.y(),self.upper_plane.d());
+        println!("mosue pos {} {}",x_coord,y_coord);
+        // println!("mosue pos {} {}",mouse_point.get032(), mouse_point.get013())
+    }
+
 }
 
 #[derive(Clone,Data,Default)]
@@ -112,9 +159,9 @@ impl Widget<State> for CustomWidget {
             Event::KeyDown(e) => {
                 println!("key down event {:?}", e);
             }
-            // Event::MouseMove(e) => {
-            //     self.mouse_move(e);
-            // }
+            Event::MouseMove(e) => {
+                self.mouse_move(e);
+            }
             _ => {
                 println!("unhandled input event {:?}", event);
             }
@@ -192,15 +239,15 @@ impl Widget<State> for CustomWidget {
         // ctx.stroke(path, &stroke_color, 1.0);
 
 
-        let p1 = Point::new(0.,   1.4, 0.);
+        let p1 = Point::new(0.,   1., 0.);
         let p2 = Point::new(0.94, 0.,  0.);
 
-//         let l = &(p1&p2);
+         let l = &(p1&p2);
 
         self.draw_point(ctx, &p1);
         self.draw_point(ctx, &p2);
 
-//         self.draw_line(ctx, l);
+         self.draw_line(ctx, l);
 
 //         // 0 = same plane (intersect at origin)
 //         // -1e02 parallel planes separated but parallel

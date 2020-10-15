@@ -1,4 +1,4 @@
-use crate::detail::sse::{rcp_nr1};
+use crate::detail::sse::rcp_nr1;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -17,7 +17,9 @@ pub struct Point {
 impl Default for Point {
     #[inline]
     fn default() -> Point {
-        Point {p3_: unsafe {_mm_setzero_ps()} }
+        Point {
+            p3_: unsafe { _mm_setzero_ps() },
+        }
     }
 }
 
@@ -34,8 +36,7 @@ impl From<__m128> for Point {
     }
 }
 
-trait Scalar {
-}
+trait Scalar {}
 
 impl Scalar for f32 {}
 impl Scalar for f64 {}
@@ -54,6 +55,38 @@ impl Point {
             p3_: unsafe { _mm_set_ps(z, y, x, 1.0) },
         }
     }
+
+
+    /// Normalize this point (division is done via rcpps with an additional
+    /// Newton-Raphson refinement).
+    pub fn normalize(&mut self) {
+        unsafe{
+            let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_,self.p3_, 0));
+            self.p3_        = _mm_mul_ps(self.p3_, tmp);
+        }
+    }
+
+    /// Return a normalized copy of this point.
+    pub fn normalized(self) -> Point     {
+        let mut out = Point::clone(&self);
+        out.normalize();
+        return out
+    }
+
+    pub fn invert(&mut self)    {
+        unsafe {
+            let inv_norm = rcp_nr1(self.p3_);//KLN_SWIZZLE(p3_, 0, 0, 0, 0));
+            self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
+            self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
+        }
+    }
+
+    pub fn inverse(self) -> Point     {
+        let mut out = Point::clone(&self);
+        out.invert();
+        return out
+    }
+
 
     pub fn x(self) -> f32 {
         let mut out = <[f32; 4]>::default();
@@ -130,19 +163,18 @@ use std::ops::Mul;
 impl Mul<f32> for Point {
     type Output = Point;
     #[inline]
-    fn mul(self, s: f32) -> Self
-    {
-        unsafe{let c = Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s)));
-        return c;
-    }
+    fn mul(self, s: f32) -> Self {
+        unsafe {
+            let c = Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s)));
+            return c;
+        }
     }
 }
 
 impl Mul<Point> for f32 {
     type Output = Point;
     #[inline]
-    fn mul(self, p: Point) -> Point
-    {
+    fn mul(self, p: Point) -> Point {
         return p * self;
     }
 }
@@ -152,11 +184,11 @@ use std::ops::Div;
 impl Div<f32> for Point {
     type Output = Point;
     #[inline]
-    fn div(self, s: f32) -> Self
-    {
-        unsafe{let c = Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s))));
-        return c;
-    }
+    fn div(self, s: f32) -> Self {
+        unsafe {
+            let c = Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s))));
+            return c;
+        }
     }
 }
 
@@ -165,13 +197,10 @@ impl Neg for Point {
     type Output = Point;
     /// Unary minus (leaves homogeneous coordinate untouched)
     #[inline]
-    fn neg(self) -> Self::Output
-    {
-        return Point::from(unsafe{_mm_xor_ps(self.p3_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0))});
+    fn neg(self) -> Self::Output {
+        return Point::from(unsafe { _mm_xor_ps(self.p3_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) });
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
