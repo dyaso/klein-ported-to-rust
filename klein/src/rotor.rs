@@ -118,12 +118,6 @@ impl Rotor {
 	}
 
 
-    pub fn scalar(self) -> f32    {
-        let mut out: f32 = 0.;
-        unsafe {_mm_store_ss(&mut out, self.p1_);}
-        return out
-    }
-
 
 
 
@@ -321,30 +315,6 @@ mod tests {
  // }
 
 
-	// #[test]
-	// fn rotor_sqrt()	{
-	//     let pi = std::f32::consts::PI;
-	//     let r = Rotor::rotor(pi * 0.5, 1., 2., 3.);
-
-	//     rotor r2 = sqrt(r);
-	//     r2       = r2 * r2;
-	//     CHECK_EQ(r2.scalar(), doctest::Approx(r.scalar()));
-	//     CHECK_EQ(r2.e23(), doctest::Approx(r.e23()));
-	//     CHECK_EQ(r2.e31(), doctest::Approx(r.e31()));
-	//     CHECK_EQ(r2.e12(), doctest::Approx(r.e12()));
-	// }
-
-	// TEST_CASE("normalize-rotor")
-	// {
-	//     rotor r;
-	//     r.p1_ = _mm_set_ps(4.f, -3.f, 3.f, 28.f);
-	//     r.normalize();
-	//     rotor norm = r * ~r;
-	//     CHECK_EQ(norm.scalar(), doctest::Approx(1.f));
-	//     CHECK_EQ(norm.e12(), doctest::Approx(0.f));
-	//     CHECK_EQ(norm.e31(), doctest::Approx(0.f));
-	//     CHECK_EQ(norm.e23(), doctest::Approx(0.f));
-	// }
 	
 	#[test]
 	fn rotor_constrain()	{
@@ -357,4 +327,31 @@ mod tests {
 	    assert_eq!(r1, -r2);
 	}
 
+	#[test]
+	fn rotor_sqrt() {
+   	    let pi = std::f32::consts::PI;
+		let r = Rotor::rotor(pi * 0.5, 1., 2., 3.);
+
+	    let mut r2: Rotor = r.sqrt();
+	    r2       = r2 * r2;
+	    approx_eq(r2.scalar(), r.scalar());
+	    approx_eq(r2.e23(), r.e23());
+	    approx_eq(r2.e31(), r.e31());
+	    approx_eq(r2.e12(), r.e12());
+	}
+
+
+	#[test]
+	fn normalize_rotor()	{
+		unsafe {
+		    let mut r = Rotor::from(_mm_set_ps(4., -3., 3., 28.));
+	//	    r.p1_ = _mm_set_ps(4.f, -3.f, 3.f, 28.f);
+		    r.normalize();
+		    let norm: Rotor = r * r.reverse();
+		    approx_eq(norm.scalar(), 1.);
+		    approx_eq(norm.e12(), 0.);
+		    approx_eq(norm.e31(), 0.);
+		    approx_eq(norm.e23(), 0.);
+		}
+	}
 }

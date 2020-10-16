@@ -1,4 +1,4 @@
-use crate::detail::sse::{hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{hi_dp, dp_bc, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -396,16 +396,25 @@ impl Branch {
         f32::sqrt(self.squared_norm())
     }
 
-    pub fn normalize_branch(&mut self) {
-        let inv_norm: __m128 = rsqrt_nr1(hi_dp_bc(self.p1_, self.p1_));
+    pub fn normalize(&mut self) {
         unsafe {
+            let mut inv_norm = _mm_setzero_ps();
+            
+            if self.scalar() == 0. {
+                // it's a Branch
+                inv_norm = rsqrt_nr1(hi_dp_bc(self.p1_, self.p1_));
+            } else {
+                // it's a Rotor
+                inv_norm = rsqrt_nr1(dp_bc(self.p1_, self.p1_));
+            }
+
             self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
         }
     }
 
-    pub fn normalized_branch(self) -> Self {
+    pub fn normalized(self) -> Self {
         let mut out = Self::from(self.p1_);
-        out.normalize_branch();
+        out.normalize();
         return out;
     }
 
@@ -622,6 +631,14 @@ impl Branch {
 
     pub fn x(self) -> f32 {
         self.e23()
+    }
+
+    // rust port comment: Branches are also used to represent Rotors
+    // Branches have scalar component = 0
+    pub fn scalar(self) -> f32    {
+        let mut out: f32 = 0.;
+        unsafe {_mm_store_ss(&mut out, self.p1_);}
+        return out
     }
 
     /// Reversion operator

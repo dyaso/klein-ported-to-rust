@@ -18,7 +18,7 @@ use crate::detail::sse::{hi_dp, hi_dp_ss, rcp_nr1, hi_dp_bc, rsqrt_nr1};
 // and 2.
 
 #[inline]
-pub fn exp(a: __m128,
+pub fn simd_exp(a: __m128,
                                  b:__m128,
     p1_out :&mut __m128,
     p2_out :&mut __m128)
@@ -117,5 +117,100 @@ pub fn exp(a: __m128,
 	    *p2_out = _mm_add_ps(*p2_out, _mm_mul_ps(minus_vcosu, norm_real));
 	    let minus_vsinu = uv[1] * sincosu[0];
 	    *p2_out = _mm_add_ps(_mm_set_ps(0., 0., 0., minus_vsinu), *p2_out);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#[inline]
+pub fn simd_log(p1:__m128, p2:__m128,
+                                 p1_out: &mut __m128,
+                                 p2_out: &mut __m128) {
+    // The logarithm follows from the derivation of the exponential. Working
+    // backwards, we ended up computing the exponential like so:
+    //
+    // cosu + sinu n + v n cosu e0123 - v sinu e0123 =
+    // (cosu - v sinu e0123) + (sinu + v cosu e0123) n
+    //
+    // where n is the normalized bivector. If we compute the norm, that will
+    // allow us to match it to sinu + vcosu e0123, which will then allow us
+    // to deduce u and v.
+
+    // The first thing we need to do is extract only the bivector components
+    // from the motor.
+	unsafe{
+	    let bv_mask = _mm_set_ps(1., 1., 1., 0.);
+	    let a       = _mm_mul_ps(bv_mask, p1);
+	    let b       = _mm_mul_ps(bv_mask, p2);
+
+	    // Next, we need to compute the norm as in the exponential.
+	    let a2 = hi_dp_bc(a, a);
+	    // TODO: handle case when a2 is 0
+	    let ab          = hi_dp_bc(a, b);
+	    let a2_sqrt_rcp = rsqrt_nr1(a2);
+	    let s           = _mm_mul_ps(a2, a2_sqrt_rcp);
+	    let minus_t     = _mm_mul_ps(ab, a2_sqrt_rcp);
+	    // s + t e0123 is the norm of our bivector.
+
+	    // Store the scalar component
+	    let mut p:f32 = 0.;
+	    _mm_store_ss(&mut p, p1);
+
+	    // Store the pseudoscalar component
+	    let mut q:f32 = 0.;
+	    _mm_store_ss(&mut q, p2);
+
+	    let mut s_scalar:f32 = 0.;
+	    _mm_store_ss(&mut s_scalar, s);
+	    let mut t_scalar:f32 = 0.;
+	    _mm_store_ss(&mut t_scalar, minus_t);
+	    t_scalar *= -1.;
+	    // p = cosu
+	    // q = -v sinu
+	    // s_scalar = sinu
+	    // t_scalar = v cosu
+
+	    let mut u:f32 = 0.;
+	    let mut v:f32 = 0.;
+	    let p_zero:bool = f32::abs(p) < 1e-6;
+	    if p_zero {
+		    u = f32::atan2(-q, t_scalar);
+	    	v = -q / s_scalar;
+	    } else {
+		    u = f32::atan2(s_scalar, p);
+	    	v = t_scalar / p;
+	    }
+	    // float u = p_zero ? std::atan2(-q, t_scalar) : std::atan2(s_scalar, p);
+	    // float v = p_zero ? -q / s_scalar : t_scalar / p;
+
+	    // Now, (u + v e0123) * n when exponentiated will give us the motor, so
+	    // (u + v e0123) * n is the logarithm. To proceed, we need to compute
+	    // the normalized bivector.
+	    let mut norm_real  = _mm_mul_ps(a, a2_sqrt_rcp);
+	    let mut norm_ideal = _mm_mul_ps(b, a2_sqrt_rcp);
+	    norm_ideal        = _mm_sub_ps(
+	        norm_ideal,
+	        _mm_mul_ps(
+	            a, _mm_mul_ps(ab, _mm_mul_ps(a2_sqrt_rcp, rcp_nr1(a2)))));
+
+	    let uvec = _mm_set1_ps(u);
+	    *p1_out      = _mm_mul_ps(uvec, norm_real);
+	    *p2_out      = _mm_mul_ps(uvec, norm_ideal);
+	    *p2_out      = _mm_sub_ps(*p2_out, _mm_mul_ps(_mm_set1_ps(v), norm_real));
 	}
 }

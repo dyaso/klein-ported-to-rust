@@ -11,6 +11,7 @@ mod translator;
 mod rotor;
 mod motor;
 mod geometric_product;
+mod exp_log_sqrt;
 mod util;
 
 pub use dual::Dual;

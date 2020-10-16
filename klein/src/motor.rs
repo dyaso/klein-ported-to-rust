@@ -2,9 +2,9 @@
 use std::arch::x86_64::*;
 
 use crate::detail::sse::{dp_bc, rsqrt_nr1, rcp_nr1}; // hi_dp, hi_dp_bc, };
-use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four};
+use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four, swMM_four};
 
-use crate::detail::exp_log::{exp};
+use crate::detail::exp_log::{simd_exp};
 use crate::detail::geometric_product::{gpDL};
 
 
@@ -106,7 +106,7 @@ impl Motor{
         let mut out = Motor::default();
         gpDL(
             -ang_rad * 0.5, d * 0.5, l.p1_, l.p2_, &mut log_m.p1_, &mut log_m.p2_);
-        exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
+        simd_exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
         return out
     }
 
@@ -303,7 +303,29 @@ impl Motor{
         return out
     }
 
+    pub fn reverse(self) -> Motor {
+    	unsafe {
+    		let flip : __m128 = _mm_set_ps(-0., -0., -0., 0.);
+    		return Motor::from_rotor_and_translator(
+    			 _mm_xor_ps(self.p1_, flip), 
+    			 _mm_xor_ps(self.p2_, flip));
+    	}
+    }
+}
 
+use std::ops::Neg;
+
+/// Unary minus
+impl Neg for Motor {
+    type Output = Self;
+    #[inline]
+    fn neg(self) -> Self::Output {
+        unsafe {
+            let flip: __m128 = _mm_set1_ps(-0.);
+
+            return Self::from_rotor_and_translator(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip));
+        }
+    }
 }
 
 impl PartialEq for Motor {
@@ -333,6 +355,15 @@ impl ApplyOp<Point> for Motor {
     }
 }
 
+/// Conjugates a line $\ell$ with this motor and returns the result
+/// $m\ell \widetilde{m}$.
+impl ApplyOp<Line> for Motor {
+    fn apply_to(self, rhs: Line) -> Line {
+    	let (branch, ideal) = swMM_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
+        return Line::from(branch, ideal)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(target_arch = "x86_64")]
@@ -342,7 +373,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Line, IdealLine, Plane, Point, Rotor, EulerAngles, ApplyOp, Motor};
+    use crate::{Line, IdealLine, Plane, Point, Rotor, EulerAngles, ApplyOp, Motor, Translator};
 
 	#[test]
 	fn motor_plane() {
@@ -367,5 +398,99 @@ mod tests {
 	    assert_eq!(p2.w(), 30.);
 	}
 
+	#[test]
+	fn motor_constrain()	{
+	    let mut m1 = Motor::new(1., 2., 3., 4., 5., 6., 7., 8.);
+	    let mut m2 = m1.constrained();
+	    assert_eq!(m1, m2);
 
+	    m1 = -m1;
+	    m2 = m1.constrained();
+	    assert_eq!(m1, -m2);
+	}
+
+	#[test]
+	fn construct_motor()	{
+	    let pi = std::f32::consts::PI;
+	    let r = Rotor::rotor(pi * 0.5, 0., 0., 1.);
+	    let t = Translator::translator(1., 0., 0., 1.);
+	    let mut m : Motor = r * t;
+	    let p1 = Point::new(1., 0., 0.);
+	    let mut p2 : Point = m.apply_to(p1);
+	    assert_eq!(p2.x(), 0.);
+	    approx_eq(p2.y(), -1.);
+	    approx_eq(p2.z(), 1.);
+
+	    // Rotation and translation about the same axis commutes
+	    m  = t * r;
+	    p2 = m.apply_to(p1);
+	    assert_eq!(p2.x(), 0.);
+	    approx_eq(p2.y(), -1.);
+	    approx_eq(p2.z(), 1.);
+
+	    let l : Line = m.log();
+	    assert_eq!(l.e23(), 0.);
+	    //CHECK_EQ(l.e12(), doctest::Approx(0.7854).epsilon(0.001));
+	    approx_eq(l.e12(), 0.785398);//.epsilon(0.001);
+	    assert_eq!(l.e31(), 0.);
+	    assert_eq!(l.e01(), 0.);
+	    assert_eq!(l.e02(), 0.);
+	    approx_eq(l.e03(), -0.5);
+	}
+
+
+	#[test]
+	fn construct_motor_via_screw_axis()	{
+	    let pi = std::f32::consts::PI;
+	    let m = Motor::screw(pi * 0.5, 1., Line::new(0., 0., 0., 0., 0., 1.));
+	    let p1 = Point::new(1., 0., 0.);
+	    let p2 = m.apply_to(p1);
+	    approx_eq(p2.x(), 0.);
+	    approx_eq(p2.y(), 1.);
+	    approx_eq(p2.z(), 1.);
+	}
+
+	#[test]
+	fn motor_line()	{
+	    let m = Motor::new(2., 4., 3., -1., -5., -2., 2., -3.);
+	    // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
+	    let l1 = Line::new(-1., 2., -3., -6., 5., 4.);
+	    let l2:Line = m.apply_to(l1);
+	    assert_eq!(l2.e01(), 6.);
+	    assert_eq!(l2.e02(), 522.);
+	    assert_eq!(l2.e03(), 96.);
+	    assert_eq!(l2.e12(), -214.);
+	    assert_eq!(l2.e31(), -148.);
+	    assert_eq!(l2.e23(), -40.);
+	}
+
+	#[test]
+	fn normalize_motor()	{
+	    let mut m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+	    m.normalize();
+	    let norm : Motor = m * m.reverse();
+		approx_eq(norm.scalar(), 1.);
+		approx_eq(norm.e0123(), 0.);
+	}
+
+
+	#[test]
+	fn motor_sqrt()	{
+   	    let pi = std::f32::consts::PI;
+	    let m = Motor::screw(
+	        pi * 0.5, 3., Line::new(3., 1., 2., 4., -2., 1.).normalized());
+
+	    let mut m2 : Motor = m.sqrt();
+	    m2       = m2 * m2;
+	    approx_eq(m.scalar(), m2.scalar());
+	    approx_eq(m.e01(), m2.e01());
+	    approx_eq(m.e02(), m2.e02());
+	    approx_eq(m.e03(), m2.e03());
+	    approx_eq(m.e23(), m2.e23());
+	    approx_eq(m.e31(), m2.e31());
+	    approx_eq(m.e12(), m2.e12());
+	    approx_eq(m.e0123(), m2.e0123());
+	}
 }
+
+

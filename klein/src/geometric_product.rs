@@ -3,7 +3,7 @@ use std::arch::x86_64::*;
 
 use crate::detail::sse::{dp_bc, rsqrt_nr1, rcp_nr1}; // hi_dp, hi_dp_bc, };
 
-use crate::detail::exp_log::{exp};
+//use crate::detail::exp_log::{simd_exp};
 
 
 

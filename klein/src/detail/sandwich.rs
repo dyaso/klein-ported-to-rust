@@ -22,7 +22,7 @@ use crate::detail::sse::{hi_dp, hi_dp_ss, rcp_nr1}; //, hi_dp, hi_dp_bc, rsqrt_n
 /// Partition memory layouts
 ///     LSB --> MSB
 /// p0: (e0, e1, e2, e3)
-/// p1: (1, e23, e31, e12)
+/// .1: (1, e23, e31, e12)
 /// p2: (e0123, e01, e02, e03)
 /// p3: (e123, e032, e013, e021)
 
@@ -342,45 +342,46 @@ pub fn swMMRotation(b:__m128) ->(__m128,__m128,__m128){
     }
 }
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		private static (__m128 tmp4, __m128 tmp5, __m128 tmp6) swMMTranslation(__m128 b, __m128 c)
-// 		{
-// 			__m128 b_xwyz = _mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */);
-// 			__m128 b_xzwy = _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */);
-// 			__m128 b_yxxx = _mm_swizzle_ps(b, 1 /* 0, 0, 0, 1 */);
-// 			__m128 b_xxxx = _mm_swizzle_ps(b, 0 /* 0, 0, 0, 0 */);
-// 			__m128 scale = _mm_set_ps(2f, 2f, 2f, 0f);
+#[inline]
+pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
+    unsafe{
+    	let b_xwyz = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
+    	let b_xzwy = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+    	let b_yxxx = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
+    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
+    	let scale = _mm_set_ps(2., 2., 2., 0.);
 
-// 			// Translation
-// 			__m128 czero = _mm_swizzle_ps(c, 0 /* 0, 0, 0, 0 */);
-// 			__m128 c_xzwy = _mm_swizzle_ps(c, 120 /* 1, 3, 2, 0 */);
-// 			__m128 c_xwyz = _mm_swizzle_ps(c, 156 /* 2, 1, 3, 0 */);
+    	// Translation
+    	let czero = _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */);
+    	let c_xzwy = _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */);
+    	let c_xwyz = _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */);
 
-// 			var tmp4 = _mm_mul_ps(b, c);
-// 			tmp4 = _mm_sub_ps(
-// 				tmp4, _mm_mul_ps(b_yxxx, _mm_swizzle_ps(c, 1 /* 0, 0, 0, 1 */)));
-// 			tmp4 = _mm_sub_ps(tmp4,
-// 				_mm_mul_ps(_mm_swizzle_ps(b, 126 /* 1, 3, 3, 2 */),
-// 					_mm_swizzle_ps(c, 126 /* 1, 3, 3, 2 */)));
-// 			tmp4 = _mm_sub_ps(tmp4,
-// 				_mm_mul_ps(_mm_swizzle_ps(b, 155 /* 2, 1, 2, 3 */),
-// 					_mm_swizzle_ps(c, 155 /* 2, 1, 2, 3 */)));
-// 			tmp4 = _mm_add_ps(tmp4, tmp4);
+    	let mut tmp4 = _mm_mul_ps(b, c);
+    	tmp4 = _mm_sub_ps(
+    		tmp4, _mm_mul_ps(b_yxxx, _mm_shuffle_ps(c,c, 1 /* 0, 0, 0, 1 */)));
+    	tmp4 = _mm_sub_ps(tmp4,
+    		_mm_mul_ps(_mm_shuffle_ps(b,b, 126 /* 1, 3, 3, 2 */),
+    			_mm_shuffle_ps(c,c, 126 /* 1, 3, 3, 2 */)));
+    	tmp4 = _mm_sub_ps(tmp4,
+    		_mm_mul_ps(_mm_shuffle_ps(b,b, 155 /* 2, 1, 2, 3 */),
+    			_mm_shuffle_ps(c,c, 155 /* 2, 1, 2, 3 */)));
+    	tmp4 = _mm_add_ps(tmp4, tmp4);
 
-// 			var tmp5 = _mm_mul_ps(b, c_xwyz);
-// 			tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xzwy, czero));
-// 			tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xwyz, c));
-// 			tmp5 = _mm_sub_ps(tmp5, _mm_mul_ps(b_xxxx, c_xzwy));
-// 			tmp5 = _mm_mul_ps(tmp5, scale);
+    	let mut tmp5 = _mm_mul_ps(b, c_xwyz);
+    	tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xzwy, czero));
+    	tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xwyz, c));
+    	tmp5 = _mm_sub_ps(tmp5, _mm_mul_ps(b_xxxx, c_xzwy));
+    	tmp5 = _mm_mul_ps(tmp5, scale);
 
-// 			var tmp6 = _mm_mul_ps(b, c_xzwy);
-// 			tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xxxx, c_xwyz));
-// 			tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xzwy, c));
-// 			tmp6 = _mm_sub_ps(tmp6, _mm_mul_ps(b_xwyz, czero));
-// 			tmp6 = _mm_mul_ps(tmp6, scale);
+    	let mut tmp6 = _mm_mul_ps(b, c_xzwy);
+    	tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xxxx, c_xwyz));
+    	tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xzwy, c));
+    	tmp6 = _mm_sub_ps(tmp6, _mm_mul_ps(b_xwyz, czero));
+    	tmp6 = _mm_mul_ps(tmp6, scale);
 
-// 			return (tmp4, tmp5, tmp6);
-// 		}
+    	return (tmp4, tmp5, tmp6);
+    }
+}
 
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 // 		public static unsafe void swMM(
@@ -428,34 +429,33 @@ pub fn swMMRotation(b:__m128) ->(__m128,__m128,__m128){
 // 			}
 // 		}
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static (__m128, __m128) swMM(
-// 			__m128 inp1, __m128 inp2,
-// 			__m128 b, __m128 c)
-// 		{
-// 			var (tmp1, tmp2, tmp3) = swMMRotation(b);
-// 			var (tmp4, tmp5, tmp6) = swMMTranslation(b, c);
+#[inline]
+pub fn swMM_four(inp1 :__m128, inp2 :__m128, b :__m128, c :__m128) -> (__m128, __m128){
+    unsafe{
+    	let (tmp1, tmp2, tmp3) = swMMRotation(b);
+    	let (tmp4, tmp5, tmp6) = swMMTranslation(b, c);
 
-// 			__m128 p1_in_xzwy = _mm_swizzle_ps(inp1, 120 /* 1, 3, 2, 0 */);
-// 			__m128 p1_in_xwyz = _mm_swizzle_ps(inp1, 156 /* 2, 1, 3, 0 */);
+    	let p1_in_xzwy = _mm_shuffle_ps(inp1,inp1, 120 /* 1, 3, 2, 0 */);
+    	let p1_in_xwyz = _mm_shuffle_ps(inp1,inp1, 156 /* 2, 1, 3, 0 */);
 
-// 			var p1_out = _mm_mul_ps(tmp1, inp1);
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
 
-// 			var p2_out = _mm_mul_ps(tmp1, inp2);
-// 			p2_out = _mm_add_ps(
-// 				p2_out, _mm_mul_ps(tmp2, _mm_swizzle_ps(inp2, 120 /* 1, 3, 2, 0 */)));
-// 			p2_out = _mm_add_ps(
-// 				p2_out, _mm_mul_ps(tmp3, _mm_swizzle_ps(inp2, 156 /* 2, 1, 3, 0 */)));
+    	let mut p2_out = _mm_mul_ps(tmp1, inp2);
+    	p2_out = _mm_add_ps(
+    		p2_out, _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2,inp2, 120 /* 1, 3, 2, 0 */)));
+    	p2_out = _mm_add_ps(
+    		p2_out, _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2,inp2, 156 /* 2, 1, 3, 0 */)));
 
-// 			// translate
-// 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, inp1));
-// 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
-// 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
+    	// translate
+    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, inp1));
+    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
+    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
 
-// 			return (p1_out, p2_out);
-// 		}
+    	return (p1_out, p2_out);
+    }
+}
 
 #[inline]
 pub fn swMM_three(inp1:__m128 ,inp2: __m128 ,b: __m128) ->(__m128, __m128){
