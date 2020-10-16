@@ -21,6 +21,12 @@ pub struct IdealLine {
     pub p2_: __m128,
 }
 
+impl From<__m128> for IdealLine {
+    fn from(xmm: __m128) -> Self {
+        unsafe { IdealLine { p2_: xmm } }
+    }
+}
+
 impl IdealLine {
     pub fn new(a: f32, b: f32, c: f32) -> IdealLine {
         unsafe {
@@ -30,9 +36,9 @@ impl IdealLine {
         }
     }
 
-    pub fn from(xmm: __m128) -> IdealLine {
-        unsafe { IdealLine { p2_: xmm } }
-    }
+    // pub fn from(xmm: __m128) -> IdealLine {
+    //     unsafe { IdealLine { p2_: xmm } }
+    // }
 
     pub fn squared_ideal_norm(self) -> f32 {
         let mut out: f32 = 0.;
@@ -123,6 +129,9 @@ impl Sub for IdealLine {
         unsafe { IdealLine::from(_mm_sub_ps(self.p2_, rhs.p2_)) }
     }
 }
+
+
+//scalar_multiply!(IdealLine, unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s))) });
 
 /// Ideal line uniform scale
 impl Mul<f32> for IdealLine {
@@ -246,6 +255,72 @@ impl Neg for IdealLine {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /// The `branch` both a line through the origin and also the principal branch of
 /// the logarithm of a rotor.
 ///
@@ -271,12 +346,23 @@ impl Neg for IdealLine {
 /// no translational components, the branch is given its own type for
 /// efficiency.
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Branch {
     pub p1_: __m128,
 }
 
+impl From<__m128> for Branch {
+    fn from(xmm: __m128) -> Branch {
+        Branch { p1_: xmm } 
+    }
+
+}
+
 impl Branch {
+    pub fn default() -> Branch {
+        unsafe{ Branch {p1_: _mm_setzero_ps()} }
+    }
+
     /// Construct the branch as the following multivector:
     ///
     /// $$a \mathbf{e}_{23} + b\mathbf{e}_{31} + c\mathbf{e}_{12}$$
@@ -290,10 +376,6 @@ impl Branch {
                 p1_: _mm_set_ps(c, b, a, 0.),
             }
         }
-    }
-
-    pub fn from(xmm: __m128) -> Branch {
-        unsafe { Branch { p1_: xmm } }
     }
 
     /// If a line is constructed as the regressive product (join) of
@@ -314,16 +396,16 @@ impl Branch {
         f32::sqrt(self.squared_norm())
     }
 
-    pub fn normalize(&mut self) {
+    pub fn normalize_branch(&mut self) {
         let inv_norm: __m128 = rsqrt_nr1(hi_dp_bc(self.p1_, self.p1_));
         unsafe {
             self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
         }
     }
 
-    pub fn normalized(self) -> Branch {
-        let mut out = Branch::from(self.p1_);
-        out.normalize();
+    pub fn normalized_branch(self) -> Self {
+        let mut out = Self::from(self.p1_);
+        out.normalize_branch();
         return out;
     }
 
@@ -485,6 +567,15 @@ impl Div<i32> for Branch {
 }
 
 impl Branch {
+
+    /// Store m128 contents into an array of 4 floats
+    pub fn store(self) -> [f32;4] {
+        let mut out = <[f32; 4]>::default();
+        
+        unsafe {_mm_store_ps(&mut out[0], self.p1_);}
+        return out
+    }
+
     pub fn e12(self) -> f32 {
         let mut out = <[f32; 4]>::default();
         unsafe {
@@ -563,6 +654,75 @@ pub struct Line {
     pub p1_: __m128,
     pub p2_: __m128,
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 impl Line {
     /// A line is specifed by 6 coordinates which correspond to the line's
@@ -663,13 +823,13 @@ impl Line {
         }
     }
 
-    fn normalized(self) -> Self {
+    pub fn normalized(self) -> Self {
         let mut out = Self::from(self.p1_, self.p2_);
         out.normalize();
         return out;
     }
 
-    fn invert(&mut self) {
+    pub fn invert(&mut self) {
         unsafe {
             // s, t computed as in the normalization
             let b2: __m128 = hi_dp_bc(self.p1_, self.p1_);
@@ -693,7 +853,7 @@ impl Line {
         }
     }
 
-    fn inverse(self) -> Line {
+    pub fn inverse(self) -> Line {
         let mut out = Line::from(self.p1_, self.p2_);
         out.invert();
         return out;

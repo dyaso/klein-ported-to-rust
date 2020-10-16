@@ -75,7 +75,7 @@ impl Point {
 
     pub fn invert(&mut self)    {
         unsafe {
-            let inv_norm = rcp_nr1(self.p3_);//KLN_SWIZZLE(p3_, 0, 0, 0, 0));
+            let inv_norm = rcp_nr1(_mm_shuffle_ps(self.p3_,self.p3_,0));
             self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
             self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
         }

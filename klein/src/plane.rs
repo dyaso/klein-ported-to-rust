@@ -160,9 +160,7 @@ impl Plane {
     }
 }
 
-trait ApplyOp<O> {
-    fn apply_to(self, other: O) -> O;
-}
+use crate::util::ApplyOp;
 
 impl ApplyOp<Plane> for Plane {
     /// Reflect another plane $p_2$ through this plane $p_1$. The operation
@@ -311,4 +309,15 @@ mod tests {
         assert_eq!(p3.e032(), 20.);
         assert_eq!(p3.e123(), 14.);
     }
+
+    #[test]
+    fn planes() {
+        let mut p = Plane::new(1., 3., 4., -5.);
+        let mut p_norm = p | p;
+        assert_ne!(p_norm, 1.);
+        p.normalize();
+        p_norm = p | p;
+        approx_eq(p_norm, 1.);
+    }
+
 }

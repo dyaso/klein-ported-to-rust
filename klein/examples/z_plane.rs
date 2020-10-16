@@ -84,7 +84,6 @@ impl CustomWidget {
 
     fn dist(a :&Point, b :&Point) -> f32 {
         let d = (a.normalized() & b.normalized()).norm();
-println!("dist: {}",d);
 
         return if f32::is_nan(d) {1000000.} else {d}
     }

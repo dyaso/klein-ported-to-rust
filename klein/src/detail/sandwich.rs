@@ -3,6 +3,8 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+use crate::detail::sse::{hi_dp, hi_dp_ss, rcp_nr1}; //, hi_dp, hi_dp_bc, rsqrt_nr1};
+
 /// File: sandwich.hpp
 /// Purpose: Define functions of the form swAB where A and B are partition
 /// indices. Each function so-defined computes the sandwich operator using vector
@@ -164,180 +166,181 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
     }
 }
 
-// 		// Apply a translator to a plane.
-// 		// Assumes e0123 component of p2 is exactly 0
-// 		// p0: (e0, e1, e2, e3)
-// 		// p2: (e0123, e01, e02, e03)
-// 		// b * a * ~b
-// 		// The low component of p2 is expected to be the scalar component instead
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 sw02(__m128 a, __m128 b)
-// 		{
-// 			// (a0 b0^2 + 2a1 b0 b1 + 2a2 b0 b2 + 2a3 b0 b3) e0 +
-// 			// (a1 b0^2) e1 +
-// 			// (a2 b0^2) e2 +
-// 			// (a3 b0^2) e3
-// 			//
-// 			// Because the plane is projectively equivalent on multiplication by a
-// 			// scalar, we can divide the result through by b0^2
-// 			//
-// 			// (a0 + 2a1 b1 / b0 + 2a2 b2 / b0 + 2a3 b3 / b0) e0 +
-// 			// a1 e1 +
-// 			// a2 e2 +
-// 			// a3 e3
-// 			//
-// 			// The additive term clearly contains a dot product between the plane's
-// 			// normal and the translation axis, demonstrating that the plane
-// 			// "doesn't care" about translations along its span. More precisely, the
-// 			// plane translates by the projection of the translator on the plane's
-// 			// normal.
+// Apply a translator to a plane.
+// Assumes e0123 component of p2 is exactly 0
+// p0: (e0, e1, e2, e3)
+// p2: (e0123, e01, e02, e03)
+// b * a * ~b
+// The low component of p2 is expected to be the scalar component instead
+#[inline]
+pub fn sw02(a:__m128,b: __m128) -> __m128{
+	// (a0 b0^2 + 2a1 b0 b1 + 2a2 b0 b2 + 2a3 b0 b3) e0 +
+	// (a1 b0^2) e1 +
+	// (a2 b0^2) e2 +
+	// (a3 b0^2) e3
+	//
+	// Because the plane is projectively equivalent on multiplication by a
+	// scalar, we can divide the result through by b0^2
+	//
+	// (a0 + 2a1 b1 / b0 + 2a2 b2 / b0 + 2a3 b3 / b0) e0 +
+	// a1 e1 +
+	// a2 e2 +
+	// a3 e3
+	//
+	// The additive term clearly contains a dot product between the plane's
+	// normal and the translation axis, demonstrating that the plane
+	// "doesn't care" about translations along its span. More precisely, the
+	// plane translates by the projection of the translator on the plane's
+	// normal.
 
-// 			// a1*b1 + a2*b2 + a3*b3 stored in the low component of tmp
-// 			__m128 tmp = hi_dp(a, b);
+	// a1*b1 + a2*b2 + a3*b3 stored in the low component of tmp
+	let mut tmp:__m128 = hi_dp(a, b);
 
-// 			__m128 inv_b = rcp_nr1(b);
-// 			// 2 / b0
-// 			inv_b = _mm_add_ss(inv_b, inv_b);
-// 			inv_b = _mm_and_ps(inv_b, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
-// 			tmp = _mm_mul_ss(tmp, inv_b);
+	let mut inv_b :__m128= rcp_nr1(b);
+    unsafe {
+    	// 2 / b0
+    	inv_b = _mm_add_ss(inv_b, inv_b);
+    	inv_b = _mm_and_ps(inv_b, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
+    	tmp = _mm_mul_ss(tmp, inv_b);
 
-// 			// Add to the plane
-// 			return _mm_add_ps(a, tmp);
-// 		}
+    	// Add to the plane
+    	return _mm_add_ps(a, tmp)
+    }
+}
 
-// 		// Apply a translator to a line
-// 		// a := p1 input
-// 		// d := p2 input
-// 		// c := p2 translator
-// 		// out points to the start address of a line (p1, p2)
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static (__m128, __m128) swL2(__m128 a, __m128 d, __m128 c)
-// 		{
-// 			// a0 +
-// 			// a1 e23 +
-// 			// a2 e31 +
-// 			// a3 e12 +
-// 			//
-// 			// (2a0 c0 + d0) e0123 +
-// 			// (2(a2 c3 - a3 c2 - a1 c0) + d1) e01 +
-// 			// (2(a3 c1 - a1 c3 - a2 c0) + d2) e02 +
-// 			// (2(a1 c2 - a2 c1 - a3 c0) + d3) e03
+// Apply a translator to a line
+// a := p1 input
+// d := p2 input
+// c := p2 translator
+#[inline]
+pub fn swL2(a:__m128 ,d: __m128 ,c: __m128 ) -> __m128{
+	// a0 +
+	// a1 e23 +
+	// a2 e31 +
+	// a3 e12 +
+	//
+	// (2a0 c0 + d0) e0123 +
+	// (2(a2 c3 - a3 c2 - a1 c0) + d1) e01 +
+	// (2(a3 c1 - a1 c3 - a2 c0) + d2) e02 +
+	// (2(a1 c2 - a2 c1 - a3 c0) + d3) e03
 
-// 			var p1_out = a;
+    unsafe {
+    	let mut p2_out = _mm_mul_ps(_mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */), _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */));
 
-// 			var p2_out = _mm_mul_ps(_mm_swizzle_ps(a, 120 /* 1, 3, 2, 0 */), _mm_swizzle_ps(c, 156 /* 2, 1, 3, 0 */));
+    	// Add and subtract the same quantity in the low component to produce a
+    	// cancellation
+    	p2_out = _mm_sub_ps(
+    		p2_out,
+    		_mm_mul_ps(_mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */), _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
+    	p2_out = _mm_sub_ps(p2_out,
+    		_mm_xor_ps(_mm_mul_ps(a, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)),
+    			_mm_set_ss(-0.)));
+    	p2_out = _mm_add_ps(p2_out, p2_out);
+    	p2_out = _mm_add_ps(p2_out, d);
 
-// 			// Add and subtract the same quantity in the low component to produce a
-// 			// cancellation
-// 			p2_out = _mm_sub_ps(
-// 				p2_out,
-// 				_mm_mul_ps(_mm_swizzle_ps(a, 156 /* 2, 1, 3, 0 */), _mm_swizzle_ps(c, 120 /* 1, 3, 2, 0 */)));
-// 			p2_out = _mm_sub_ps(p2_out,
-// 				_mm_xor_ps(_mm_mul_ps(a, _mm_swizzle_ps(c, 0 /* 0, 0, 0, 0 */)),
-// 					_mm_set_ss(-0f)));
-// 			p2_out = _mm_add_ps(p2_out, p2_out);
-// 			p2_out = _mm_add_ps(p2_out, d);
+    	return p2_out
+    }
+}
 
-// 			return (p1_out, p2_out);
-// 		}
+// Apply a translator to a point.
+// Assumes e0123 component of p2 is exactly 0
+// p2: (e0123, e01, e02, e03)
+// p3: (e123, e032, e013, e021)
+// b * a * ~b
+#[inline]
+pub fn sw32(a:__m128, b:__m128) -> __m128{
+	// a0 e123 +
+	// (a1 - 2 a0 b1) e032 +
+	// (a2 - 2 a0 b2) e013 +
+	// (a3 - 2 a0 b3) e021
+       
+    unsafe{
+    	let mut tmp:__m128 = _mm_mul_ps(_mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */), b);
+    	tmp = _mm_mul_ps(_mm_set_ps(-2., -2., -2., 0.), tmp);
+    	tmp = _mm_add_ps(a, tmp);
+    	return tmp
+    }
+}
 
-// 		// Apply a translator to a point.
-// 		// Assumes e0123 component of p2 is exactly 0
-// 		// p2: (e0123, e01, e02, e03)
-// 		// p3: (e123, e032, e013, e021)
-// 		// b * a * ~b
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 sw32(__m128 a, __m128 b)
-// 		{
-// 			// a0 e123 +
-// 			// (a1 - 2 a0 b1) e032 +
-// 			// (a2 - 2 a0 b2) e013 +
-// 			// (a3 - 2 a0 b3) e021
-
-// 			__m128 tmp = _mm_mul_ps(_mm_swizzle_ps(a, 0 /* 0, 0, 0, 0 */), b);
-// 			tmp = _mm_mul_ps(_mm_set_ps(-2f, -2f, -2f, 0f), tmp);
-// 			tmp = _mm_add_ps(a, tmp);
-// 			return tmp;
-// 		}
-
-// 		// Apply a motor to a motor (works on lines as well)
-// 		// in points to the start of an array of motor inputs (alternating p1 and
-// 		// p2) out points to the start of an array of motor outputs (alternating p1
-// 		// and p2)
-// 		//
-// 		// Note: inp and out are permitted to alias iff a == out.
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		private static (__m128 tmp1, __m128 tmp2, __m128 tmp3) swMMRotation(__m128 b)
-// 		{
-// 			// p1 block
-// 			// a0(b0^2 + b1^2 + b2^2 + b3^2) +
-// 			// (a1(b1^2 + b0^2 - b3^2 - b2^2) +
-// 			//     2a2(b0 b3 + b1 b2) + 2a3(b1 b3 - b0 b2)) e23 +
-// 			// (a2(b2^2 + b0^2 - b1^2 - b3^2) +
-// 			//     2a3(b0 b1 + b2 b3) + 2a1(b2 b1 - b0 b3)) e31
-// 			// (a3(b3^2 + b0^2 - b2^2 - b1^2) +
-// 			//     2a1(b0 b2 + b3 b1) + 2a2(b3 b2 - b0 b1)) e12 +
-
-// 			__m128 b_xwyz = _mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */);
-// 			__m128 b_xzwy = _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */);
-// 			__m128 b_yxxx = _mm_swizzle_ps(b, 1 /* 0, 0, 0, 1 */);
-// 			__m128 b_yxxx_2 = _mm_mul_ps(b_yxxx, b_yxxx);
-
-// 			__m128 tmp1 = _mm_mul_ps(b, b);
-// 			tmp1 = _mm_add_ps(tmp1, b_yxxx_2);
-// 			__m128 b_tmp = _mm_swizzle_ps(b, 158 /* 2, 1, 3, 2 */);
-// 			__m128 tmp2 = _mm_mul_ps(b_tmp, b_tmp);
-// 			b_tmp = _mm_swizzle_ps(b, 123 /* 1, 3, 2, 3 */);
-// 			tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_tmp, b_tmp));
-// 			tmp1 = _mm_sub_ps(tmp1, _mm_xor_ps(tmp2, _mm_set_ss(-0f)));
-// 			// tmp needs to be scaled by a and set to p1_out
-
-// 			__m128 b_xxxx = _mm_swizzle_ps(b, 0 /* 0, 0, 0, 0 */);
-// 			__m128 scale = _mm_set_ps(2f, 2f, 2f, 0f);
-// 			tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
-// 			tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b, b_xzwy));
-// 			tmp2 = _mm_mul_ps(tmp2, scale);
-// 			// tmp2 needs to be scaled by (a0, a2, a3, a1) and added to p1_out
-
-// 			__m128 tmp3 = _mm_mul_ps(b, b_xwyz);
-// 			tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xxxx, b_xzwy));
-// 			tmp3 = _mm_mul_ps(tmp3, scale);
-// 			// tmp3 needs to be scaled by (a0, a3, a1, a2) and added to p1_out
-
-// 			// p2 block
-// 			// (d coefficients are the components of the input line p2)
-// 			// (2a0(b0 c0 - b1 c1 - b2 c2 - b3 c3) +
-// 			//  d0(b1^2 + b0^2 + b2^2 + b3^2)) e0123 +
-// 			//
-// 			// (2a1(b1 c1 - b0 c0 - b3 c3 - b2 c2) +
-// 			//  2a3(b1 c3 + b2 c0 + b3 c1 - b0 c2) +
-// 			//  2a2(b1 c2 + b0 c3 + b2 c1 - b3 c0) +
-// 			//  2d2(b0 b3 + b2 b1) +
-// 			//  2d3(b1 b3 - b0 b2) +
-// 			//  d1(b0^2 + b1^2 - b3^2 - b2^2)) e01 +
-// 			//
-// 			// (2a2(b2 c2 - b0 c0 - b3 c3 - b1 c1) +
-// 			//  2a1(b2 c1 + b3 c0 + b1 c2 - b0 c3) +
-// 			//  2a3(b2 c3 + b0 c1 + b3 c2 - b1 c0) +
-// 			//  2d3(b0 b1 + b3 b2) +
-// 			//  2d1(b2 b1 - b0 b3) +
-// 			//  d2(b0^2 + b2^2 - b1^2 - b3^2)) e02 +
-// 			//
-// 			// (2a3(b3 c3 - b0 c0 - b1 c1 - b2 c2) +
-// 			//  2a2(b3 c2 + b1 c0 + b2 c3 - b0 c1) +
-// 			//  2a1(b3 c1 + b0 c2 + b1 c3 - b2 c0) +
-// 			//  2d1(b0 b2 + b1 b3) +
-// 			//  2d2(b3 b2 - b0 b1) +
-// 			//  d3(b0^2 + b3^2 - b2^2 - b1^2)) e03
-
-// 			// Rotation
-
-// 			// tmp scaled by d and added to p2
-// 			// tmp2 scaled by (d0, d2, d3, d1) and added to p2
-// 			// tmp3 scaled by (d0, d3, d1, d2) and added to p2
-
-// 			return (tmp1, tmp2, tmp3);
-// 		}
+// Apply a motor to a motor (works on lines as well)
+// in points to the start of an array of motor inputs (alternating p1 and
+// p2) out points to the start of an array of motor outputs (alternating p1
+// and p2)
+//
+// Note: inp and out are permitted to alias iff a == out.
+#[inline]
+pub fn swMMRotation(b:__m128) ->(__m128,__m128,__m128){
+	// p1 block
+	// a0(b0^2 + b1^2 + b2^2 + b3^2) +
+	// (a1(b1^2 + b0^2 - b3^2 - b2^2) +
+	//     2a2(b0 b3 + b1 b2) + 2a3(b1 b3 - b0 b2)) e23 +
+	// (a2(b2^2 + b0^2 - b1^2 - b3^2) +
+	//     2a3(b0 b1 + b2 b3) + 2a1(b2 b1 - b0 b3)) e31
+	// (a3(b3^2 + b0^2 - b2^2 - b1^2) +
+	//     2a1(b0 b2 + b3 b1) + 2a2(b3 b2 - b0 b1)) e12 +
+       
+    unsafe {
+    	let b_xwyz :__m128 = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
+    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+    	let b_yxxx :__m128 = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
+    	let b_yxxx_2 :__m128 = _mm_mul_ps(b_yxxx, b_yxxx);
+           
+    	let mut tmp1 = _mm_mul_ps(b, b);
+    	tmp1 = _mm_add_ps(tmp1, b_yxxx_2);
+    	let mut b_tmp = _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */);
+    	let mut tmp2 = _mm_mul_ps(b_tmp, b_tmp);
+    	b_tmp = _mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */);
+    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_tmp, b_tmp));
+    	tmp1 = _mm_sub_ps(tmp1, _mm_xor_ps(tmp2, _mm_set_ss(-0.)));
+    	// tmp needs to be scaled by a and set to p1_out
+           
+    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
+    	let scale = _mm_set_ps(2., 2., 2., 0.);
+    	tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
+    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b, b_xzwy));
+    	tmp2 = _mm_mul_ps(tmp2, scale);
+    	// tmp2 needs to be scaled by (a0, a2, a3, a1) and added to p1_out
+           
+    	let mut tmp3 = _mm_mul_ps(b, b_xwyz);
+    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xxxx, b_xzwy));
+    	tmp3 = _mm_mul_ps(tmp3, scale);
+    	// tmp3 needs to be scaled by (a0, a3, a1, a2) and added to p1_out
+           
+    	// p2 block
+    	// (d coefficients are the components of the input line p2)
+    	// (2a0(b0 c0 - b1 c1 - b2 c2 - b3 c3) +
+    	//  d0(b1^2 + b0^2 + b2^2 + b3^2)) e0123 +
+    	//
+    	// (2a1(b1 c1 - b0 c0 - b3 c3 - b2 c2) +
+    	//  2a3(b1 c3 + b2 c0 + b3 c1 - b0 c2) +
+    	//  2a2(b1 c2 + b0 c3 + b2 c1 - b3 c0) +
+    	//  2d2(b0 b3 + b2 b1) +
+    	//  2d3(b1 b3 - b0 b2) +
+    	//  d1(b0^2 + b1^2 - b3^2 - b2^2)) e01 +
+    	//
+    	// (2a2(b2 c2 - b0 c0 - b3 c3 - b1 c1) +
+    	//  2a1(b2 c1 + b3 c0 + b1 c2 - b0 c3) +
+    	//  2a3(b2 c3 + b0 c1 + b3 c2 - b1 c0) +
+    	//  2d3(b0 b1 + b3 b2) +
+    	//  2d1(b2 b1 - b0 b3) +
+    	//  d2(b0^2 + b2^2 - b1^2 - b3^2)) e02 +
+    	//
+    	// (2a3(b3 c3 - b0 c0 - b1 c1 - b2 c2) +
+    	//  2a2(b3 c2 + b1 c0 + b2 c3 - b0 c1) +
+    	//  2a1(b3 c1 + b0 c2 + b1 c3 - b2 c0) +
+    	//  2d1(b0 b2 + b1 b3) +
+    	//  2d2(b3 b2 - b0 b1) +
+    	//  d3(b0^2 + b3^2 - b2^2 - b1^2)) e03
+           
+    	// Rotation
+           
+    	// tmp scaled by d and added to p2
+    	// tmp2 scaled by (d0, d2, d3, d1) and added to p2
+    	// tmp3 scaled by (d0, d3, d1, d2) and added to p2
+           
+    	return (tmp1, tmp2, tmp3)
+    }
+}
 
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 // 		private static (__m128 tmp4, __m128 tmp5, __m128 tmp6) swMMTranslation(__m128 b, __m128 c)
@@ -381,13 +384,13 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 // 		public static unsafe void swMM(
-// 			bool Translate, bool InputP2,
+// 			bool translate, bool InputP2,
 // 			__m128* inp, __m128 b, __m128 c,
 // 			__m128* res, int count)
 // 		{
 // 			var (tmp1, tmp2, tmp3) = swMMRotation(b);
 
-// 			var (tmp4, tmp5, tmp6) = Translate ? swMMTranslation(b, c) : (__m128.Zero, __m128.Zero, __m128.Zero);
+// 			var (tmp4, tmp5, tmp6) = translate ? swMMTranslation(b, c) : (__m128.Zero, __m128.Zero, __m128.Zero);
 
 // 			int stride = InputP2 ? 2 : 1;
 // 			for (int i = 0; i < count; ++i)
@@ -415,7 +418,7 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 
 // 				// If what is being applied is a rotor, the non-directional
 // 				// components of the line are left untouched
-// 				if (Translate)
+// 				if translate
 // 				{
 // 					ref __m128 p2_out = ref res[2 * i + 1];
 // 					p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, p1_in));
@@ -446,7 +449,7 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 			p2_out = _mm_add_ps(
 // 				p2_out, _mm_mul_ps(tmp3, _mm_swizzle_ps(inp2, 156 /* 2, 1, 3, 0 */)));
 
-// 			// Translate
+// 			// translate
 // 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, inp1));
 // 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
 // 			p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
@@ -454,26 +457,27 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 			return (p1_out, p2_out);
 // 		}
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static (__m128, __m128) swMM(__m128 inp1, __m128 inp2, __m128 b)
-// 		{
-// 			var (tmp1, tmp2, tmp3) = swMMRotation(b);
-
-// 			__m128 p1_in_xzwy = _mm_swizzle_ps(inp1, 120 /* 1, 3, 2, 0 */);
-// 			__m128 p1_in_xwyz = _mm_swizzle_ps(inp1, 156 /* 2, 1, 3, 0 */);
-
-// 			var p1_out = _mm_mul_ps(tmp1, inp1);
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
-
-// 			var p2_out = _mm_mul_ps(tmp1, inp2);
-// 			p2_out = _mm_add_ps(
-// 				p2_out, _mm_mul_ps(tmp2, _mm_swizzle_ps(inp2, 120 /* 1, 3, 2, 0 */)));
-// 			p2_out = _mm_add_ps(
-// 				p2_out, _mm_mul_ps(tmp3, _mm_swizzle_ps(inp2, 156 /* 2, 1, 3, 0 */)));
-
-// 			return (p1_out, p2_out);
-// 		}
+#[inline]
+pub fn swMM_three(inp1:__m128 ,inp2: __m128 ,b: __m128) ->(__m128, __m128){
+    unsafe {
+    	let (tmp1, tmp2, tmp3) = swMMRotation(b);
+           
+    	let p1_in_xzwy:__m128 = _mm_shuffle_ps(inp1,inp1, 120 /* 1, 3, 2, 0 */);
+    	let p1_in_xwyz:__m128 = _mm_shuffle_ps(inp1,inp1, 156 /* 2, 1, 3, 0 */);
+           
+    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+           
+    	let mut p2_out = _mm_mul_ps(tmp1, inp2);
+    	p2_out = _mm_add_ps(
+    		p2_out, _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2,inp2, 120 /* 1, 3, 2, 0 */)));
+    	p2_out = _mm_add_ps(
+    		p2_out, _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2,inp2, 156 /* 2, 1, 3, 0 */)));
+           
+    	return (p1_out, p2_out)
+    }
+}
 
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 // 		public static __m128 swMM(__m128 inp1, __m128 b)
@@ -489,102 +493,103 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 			return p1_out;
 // 		}
 
-// 		// Apply a motor to a plane
-// 		// a := p0
-// 		// b := p1
-// 		// c := p2
-// 		// If Translate is false, c is ignored (rotor application).
-// 		// If Variadic is true, a and out must point to a contiguous block of memory
-// 		// equivalent to __m128[count]
+// Apply a motor to a plane
+// a := p0
+// b := p1
+// c := p2
+// If translate is false, c is ignored (rotor application).
+// If Variadic is true, a and out must point to a contiguous block of memory
+// equivalent to __m128[count]
+#[inline]
+pub fn sw012Common(translate:bool, b:__m128 , c:__m128 ) -> (__m128, __m128, __m128, __m128) {
+	// LSB
+	//
+	// (2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1) +
+	//  2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
+	//  2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
+	//  a0 (b2^2 + b1^2 + b0^2 + b3^2)) e0 +
+	//
+	// (2a2(b0 b3 + b2 b1) +
+	//  2a3(b1 b3 - b0 b2) +
+	//  a1 (b0^2 + b1^2 - b3^2 - b2^2)) e1 +
+	//
+	// (2a3(b0 b1 + b3 b2) +
+	//  2a1(b2 b1 - b0 b3) +
+	//  a2 (b0^2 + b2^2 - b1^2 - b3^2)) e2 +
+	//
+	// (2a1(b0 b2 + b1 b3) +
+	//  2a2(b3 b2 - b0 b1) +
+	//  a3 (b0^2 + b3^2 - b2^2 - b1^2)) e3
+	//
+	// MSB
+	//
+	// Note the similarity between the results here and the rotor and
+	// translator applied to the plane. The e1, e2, and e3 components do not
+	// participate in the translation and are identical to the result after
+	// the rotor was applied to the plane. The e0 component is displaced
+	// similarly to the manner in which it is displaced after application of
+	// a translator.
+    
+    unsafe {   
+    	// Double-cover scale
+    	let dc_scale :__m128 = _mm_set_ps(2., 2., 2., 1.);
+    	let b_xwyz :__m128 = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
+    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+    	let b_xxxx :__m128 = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
+           
+    	let mut tmp1:__m128
+    		= _mm_mul_ps(_mm_shuffle_ps(b,b, 2 /* 0, 0, 0, 2 */), _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */));
+    	tmp1 = _mm_add_ps(
+    		tmp1,
+    		_mm_mul_ps(_mm_shuffle_ps(b,b, 121 /* 1, 3, 2, 1 */), _mm_shuffle_ps(b,b, 229 /* 3, 2, 1, 1 */)));
+    	// Scale later with (a0, a2, a3, a1)
+    	tmp1 = _mm_mul_ps(tmp1, dc_scale);
+           
+    	let mut tmp2:__m128 = _mm_mul_ps(b, b_xwyz);
+           
+    	tmp2 = _mm_sub_ps(tmp2,
+    		_mm_xor_ps(_mm_set_ss(-0.),
+    			_mm_mul_ps(_mm_shuffle_ps(b,b, 3 /* 0, 0, 0, 3 */),
+    				_mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */))));
+    	// Scale later with (a0, a3, a1, a2)
+    	tmp2 = _mm_mul_ps(tmp2, dc_scale);
+           
+    	// Alternately add and subtract to improve low component stability
+    	let mut tmp3:__m128 = _mm_mul_ps(b, b);
+    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xwyz, b_xwyz));
+    	tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_xxxx, b_xxxx));
+    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xzwy, b_xzwy));
+    	// Scale later with a
+           
+    	// Compute
+    	// 0 * _ +
+    	// 2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
+    	// 2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
+    	// 2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1)
+    	// by decomposing into four vectors, factoring out the a components
+           
+    	let mut tmp4 = _mm_setzero_ps();
+    	if translate
+    	{
+    		tmp4 = _mm_mul_ps(b_xxxx, c);
+    		tmp4 = _mm_add_ps(
+    			tmp4, _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */)));
+    		tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)));
+           
+    		// NOTE: The high component of tmp4 is meaningless here
+    		tmp4 = _mm_sub_ps(
+    			tmp4, _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
+    		tmp4 = _mm_mul_ps(tmp4, dc_scale);
+    	}
+           
+    	return (tmp1, tmp2, tmp3, tmp4)
+    }
+}
+
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		private static (__m128, __m128, __m128, __m128) sw012Common(bool Translate, __m128 b, __m128 c)
+// 		public static unsafe void sw012(bool translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
 // 		{
-// 			// LSB
-// 			//
-// 			// (2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1) +
-// 			//  2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
-// 			//  2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
-// 			//  a0 (b2^2 + b1^2 + b0^2 + b3^2)) e0 +
-// 			//
-// 			// (2a2(b0 b3 + b2 b1) +
-// 			//  2a3(b1 b3 - b0 b2) +
-// 			//  a1 (b0^2 + b1^2 - b3^2 - b2^2)) e1 +
-// 			//
-// 			// (2a3(b0 b1 + b3 b2) +
-// 			//  2a1(b2 b1 - b0 b3) +
-// 			//  a2 (b0^2 + b2^2 - b1^2 - b3^2)) e2 +
-// 			//
-// 			// (2a1(b0 b2 + b1 b3) +
-// 			//  2a2(b3 b2 - b0 b1) +
-// 			//  a3 (b0^2 + b3^2 - b2^2 - b1^2)) e3
-// 			//
-// 			// MSB
-// 			//
-// 			// Note the similarity between the results here and the rotor and
-// 			// translator applied to the plane. The e1, e2, and e3 components do not
-// 			// participate in the translation and are identical to the result after
-// 			// the rotor was applied to the plane. The e0 component is displaced
-// 			// similarly to the manner in which it is displaced after application of
-// 			// a translator.
-
-// 			// Double-cover scale
-// 			__m128 dc_scale = _mm_set_ps(2f, 2f, 2f, 1f);
-// 			__m128 b_xwyz = _mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */);
-// 			__m128 b_xzwy = _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */);
-// 			__m128 b_xxxx = _mm_swizzle_ps(b, 0 /* 0, 0, 0, 0 */);
-
-// 			__m128 tmp1
-// 				= _mm_mul_ps(_mm_swizzle_ps(b, 2 /* 0, 0, 0, 2 */), _mm_swizzle_ps(b, 158 /* 2, 1, 3, 2 */));
-// 			tmp1 = _mm_add_ps(
-// 				tmp1,
-// 				_mm_mul_ps(_mm_swizzle_ps(b, 121 /* 1, 3, 2, 1 */), _mm_swizzle_ps(b, 229 /* 3, 2, 1, 1 */)));
-// 			// Scale later with (a0, a2, a3, a1)
-// 			tmp1 = _mm_mul_ps(tmp1, dc_scale);
-
-// 			__m128 tmp2 = _mm_mul_ps(b, b_xwyz);
-
-// 			tmp2 = _mm_sub_ps(tmp2,
-// 				_mm_xor_ps(_mm_set_ss(-0f),
-// 					_mm_mul_ps(_mm_swizzle_ps(b, 3 /* 0, 0, 0, 3 */),
-// 						_mm_swizzle_ps(b, 123 /* 1, 3, 2, 3 */))));
-// 			// Scale later with (a0, a3, a1, a2)
-// 			tmp2 = _mm_mul_ps(tmp2, dc_scale);
-
-// 			// Alternately add and subtract to improve low component stability
-// 			__m128 tmp3 = _mm_mul_ps(b, b);
-// 			tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xwyz, b_xwyz));
-// 			tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_xxxx, b_xxxx));
-// 			tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xzwy, b_xzwy));
-// 			// Scale later with a
-
-// 			// Compute
-// 			// 0 * _ +
-// 			// 2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
-// 			// 2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
-// 			// 2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1)
-// 			// by decomposing into four vectors, factoring out the a components
-
-// 			__m128 tmp4 = default;
-// 			if (Translate)
-// 			{
-// 				tmp4 = _mm_mul_ps(b_xxxx, c);
-// 				tmp4 = _mm_add_ps(
-// 					tmp4, _mm_mul_ps(b_xzwy, _mm_swizzle_ps(c, 156 /* 2, 1, 3, 0 */)));
-// 				tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b, _mm_swizzle_ps(c, 0 /* 0, 0, 0, 0 */)));
-
-// 				// NOTE: The high component of tmp4 is meaningless here
-// 				tmp4 = _mm_sub_ps(
-// 					tmp4, _mm_mul_ps(b_xwyz, _mm_swizzle_ps(c, 120 /* 1, 3, 2, 0 */)));
-// 				tmp4 = _mm_mul_ps(tmp4, dc_scale);
-// 			}
-
-// 			return (tmp1, tmp2, tmp3, tmp4);
-// 		}
-
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe void sw012(bool Translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
-// 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw012Common(Translate, b, c);
+// 			var (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
 
 // 			// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
 // 			// dependence on b and c.
@@ -596,7 +601,7 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 				p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a[i], 156 /* 2, 1, 3, 0 */)));
 // 				p = _mm_add_ps(p, _mm_mul_ps(tmp3, a[i]));
 
-// 				if (Translate)
+// 				if translate
 // 				{
 // 					__m128 tmp5 = hi_dp(tmp4, a[i]);
 // 					p = _mm_add_ps(p, tmp5);
@@ -604,100 +609,100 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 			}
 // 		}
 
+#[inline]
+pub fn sw012(translate:bool, a:__m128 , b:__m128 , c:__m128 ) ->__m128{
+	let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
+       
+    unsafe {
+    	// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a dependence on b and c.
+    	// Compute the lower block for components e1, e2, and e3
+    	let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */));
+    	p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */)));
+    	p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
+           
+    	if translate
+    	{
+    		let tmp5 = hi_dp(tmp4, a);
+    		p = _mm_add_ps(p, tmp5);
+    	}
+           
+    	return p
+    }
+}
+
+// Apply a motor to a point
+#[inline]
+pub fn sw312Common(translate:bool, b:__m128, c:__m128) ->(__m128, __m128, __m128, __m128){
+	// LSB
+	// a0(b1^2 + b0^2 + b2^2 + b3^2) e123 +
+	//
+	// (2a0(b2 c3 - b0 c1 - b3 c2 - b1 c0) +
+	//  2a3(b1 b3 - b0 b2) +
+	//  2a2(b0 b3 +  b2 b1) +
+	//  a1(b0^2 + b1^2 - b3^2 - b2^2)) e032
+	//
+	// (2a0(b3 c1 - b0 c2 - b1 c3 - b2 c0) +
+	//  2a1(b2 b1 - b0 b3) +
+	//  2a3(b0 b1 + b3 b2) +
+	//  a2(b0^2 + b2^2 - b1^2 - b3^2)) e013 +
+	//
+	// (2a0(b1 c2 - b0 c3 - b2 c1 - b3 c0) +
+	//  2a2(b3 b2 - b0 b1) +
+	//  2a1(b0 b2 + b1 b3) +
+	//  a3(b0^2 + b3^2 - b2^2 - b1^2)) e021 +
+	// MSB
+	//
+	// Sanity check: For c1 = c2 = c3 = 0, the computation becomes
+	// indistinguishable from a rotor application and the homogeneous
+	// coordinate a0 does not participate. As an additional sanity check,
+	// note that for a normalized rotor and homogenous point, the e123
+	// component will remain unity.
+    unsafe{
+    	let two = _mm_set_ps(2., 2., 2., 0.);
+    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
+    	let b_xwyz = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
+    	let b_xzwy = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+
+    	let mut tmp1 = _mm_mul_ps(b, b_xwyz);
+    	tmp1 = _mm_sub_ps(tmp1, _mm_mul_ps(b_xxxx, b_xzwy));
+    	tmp1 = _mm_mul_ps(tmp1, two);
+    	// tmp1 needs to be scaled by (_, a3, a1, a2)
+
+    	let mut tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
+    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_xzwy, b));
+    	tmp2 = _mm_mul_ps(tmp2, two);
+    	// tmp2 needs to be scaled by (_, a2, a3, a1)
+
+    	let mut tmp3 = _mm_mul_ps(b, b);
+    	let mut b_tmp = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
+    	tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_tmp, b_tmp));
+    	b_tmp = _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */);
+    	let mut tmp4 = _mm_mul_ps(b_tmp, b_tmp);
+    	b_tmp = _mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */);
+    	tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b_tmp, b_tmp));
+    	tmp3 = _mm_sub_ps(tmp3, _mm_xor_ps(tmp4, _mm_set_ss(-0.)));
+    	// tmp3 needs to be scaled by (a0, a1, a2, a3)
+
+    	if translate	{
+    		tmp4 = _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */));
+    		tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b_xxxx, c));
+    		tmp4 = _mm_sub_ps(
+    			 tmp4, _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
+    		tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)));
+
+    		// Mask low component and scale other components by 2
+    		tmp4 = _mm_mul_ps(tmp4, two);
+    		// tmp4 needs to be scaled by (_, a0, a0, a0)
+    	}
+
+    	return (tmp1, tmp2, tmp3, tmp4)
+    }
+}
+
 // 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 sw012(bool Translate, __m128 a, __m128 b, __m128 c)
+// 		public static unsafe void sw312(bool translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
 // 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw012Common(Translate, b, c);
-
-// 			// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a dependence on b and c.
-// 			// Compute the lower block for components e1, e2, and e3
-// 			var p = _mm_mul_ps(tmp1, _mm_swizzle_ps(a, 120 /* 1, 3, 2, 0 */));
-// 			p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a, 156 /* 2, 1, 3, 0 */)));
-// 			p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
-
-// 			if (Translate)
-// 			{
-// 				__m128 tmp5 = hi_dp(tmp4, a);
-// 				p = _mm_add_ps(p, tmp5);
-// 			}
-
-// 			return p;
-// 		}
-
-// 		// Apply a motor to a point
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe (__m128, __m128, __m128, __m128) sw312Common(bool Translate, __m128 b, __m128 c)
-// 		{
-// 			// LSB
-// 			// a0(b1^2 + b0^2 + b2^2 + b3^2) e123 +
-// 			//
-// 			// (2a0(b2 c3 - b0 c1 - b3 c2 - b1 c0) +
-// 			//  2a3(b1 b3 - b0 b2) +
-// 			//  2a2(b0 b3 +  b2 b1) +
-// 			//  a1(b0^2 + b1^2 - b3^2 - b2^2)) e032
-// 			//
-// 			// (2a0(b3 c1 - b0 c2 - b1 c3 - b2 c0) +
-// 			//  2a1(b2 b1 - b0 b3) +
-// 			//  2a3(b0 b1 + b3 b2) +
-// 			//  a2(b0^2 + b2^2 - b1^2 - b3^2)) e013 +
-// 			//
-// 			// (2a0(b1 c2 - b0 c3 - b2 c1 - b3 c0) +
-// 			//  2a2(b3 b2 - b0 b1) +
-// 			//  2a1(b0 b2 + b1 b3) +
-// 			//  a3(b0^2 + b3^2 - b2^2 - b1^2)) e021 +
-// 			// MSB
-// 			//
-// 			// Sanity check: For c1 = c2 = c3 = 0, the computation becomes
-// 			// indistinguishable from a rotor application and the homogeneous
-// 			// coordinate a0 does not participate. As an additional sanity check,
-// 			// note that for a normalized rotor and homogenous point, the e123
-// 			// component will remain unity.
-
-// 			__m128 two = _mm_set_ps(2f, 2f, 2f, 0f);
-// 			__m128 b_xxxx = _mm_swizzle_ps(b, 0 /* 0, 0, 0, 0 */);
-// 			__m128 b_xwyz = _mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */);
-// 			__m128 b_xzwy = _mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */);
-
-// 			__m128 tmp1 = _mm_mul_ps(b, b_xwyz);
-// 			tmp1 = _mm_sub_ps(tmp1, _mm_mul_ps(b_xxxx, b_xzwy));
-// 			tmp1 = _mm_mul_ps(tmp1, two);
-// 			// tmp1 needs to be scaled by (_, a3, a1, a2)
-
-// 			__m128 tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
-// 			tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_xzwy, b));
-// 			tmp2 = _mm_mul_ps(tmp2, two);
-// 			// tmp2 needs to be scaled by (_, a2, a3, a1)
-
-// 			__m128 tmp3 = _mm_mul_ps(b, b);
-// 			__m128 b_tmp = _mm_swizzle_ps(b, 1 /* 0, 0, 0, 1 */);
-// 			tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_tmp, b_tmp));
-// 			b_tmp = _mm_swizzle_ps(b, 158 /* 2, 1, 3, 2 */);
-// 			__m128 tmp4 = _mm_mul_ps(b_tmp, b_tmp);
-// 			b_tmp = _mm_swizzle_ps(b, 123 /* 1, 3, 2, 3 */);
-// 			tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b_tmp, b_tmp));
-// 			tmp3 = _mm_sub_ps(tmp3, _mm_xor_ps(tmp4, _mm_set_ss(-0f)));
-// 			// tmp3 needs to be scaled by (a0, a1, a2, a3)
-
-// 			if (Translate)
-// 			{
-// 				tmp4 = _mm_mul_ps(b_xzwy, _mm_swizzle_ps(c, 156 /* 2, 1, 3, 0 */));
-// 				tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b_xxxx, c));
-// 				tmp4 = _mm_sub_ps(
-// 					 tmp4, _mm_mul_ps(b_xwyz, _mm_swizzle_ps(c, 120 /* 1, 3, 2, 0 */)));
-// 				tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b, _mm_swizzle_ps(c, 0 /* 0, 0, 0, 0 */)));
-
-// 				// Mask low component and scale other components by 2
-// 				tmp4 = _mm_mul_ps(tmp4, two);
-// 				// tmp4 needs to be scaled by (_, a0, a0, a0)
-// 			}
-
-// 			return (tmp1, tmp2, tmp3, tmp4);
-// 		}
-
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe void sw312(bool Translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
-// 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw312Common(Translate, b, c);
+// 			var (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
 
 // 			for (int i = 0; i < count; ++i)
 // 			{
@@ -706,7 +711,7 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 				p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a[i], 120 /* 1, 3, 2, 0 */)));
 // 				p = _mm_add_ps(p, _mm_mul_ps(tmp3, a[i]));
 
-// 				if (Translate)
+// 				if translate
 // 				{
 // 					p = _mm_add_ps(
 // 						 p, _mm_mul_ps(tmp4, _mm_swizzle_ps(a[i], 0 /* 0, 0, 0, 0 */)));
@@ -714,23 +719,24 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // 			}
 // 		}
 
-// 		// Apply a motor to one point
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 sw312(bool Translate, __m128 a, __m128 b, __m128 c)
-// 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw312Common(Translate, b, c);
+// Apply a motor to one point
+#[inline]
+pub fn sw312_four(translate:bool, a:__m128 , b:__m128 ,c: __m128 ) -> __m128{
+    unsafe{
+    	let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
 
-// 			var p = _mm_mul_ps(tmp1, _mm_swizzle_ps(a, 156 /* 2, 1, 3, 0 */));
-// 			p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a, 120 /* 1, 3, 2, 0 */)));
-// 			p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
+    	let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */));
+    	p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */)));
+    	p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
 
-// 			if (Translate)
-// 			{
-// 				p = _mm_add_ps(p, _mm_mul_ps(tmp4, _mm_swizzle_ps(a, 0 /* 0, 0, 0, 0 */)));
-// 			}
+    	if translate
+    	{
+    		p = _mm_add_ps(p, _mm_mul_ps(tmp4, _mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */)));
+    	}
 
-// 			return p;
-// 		}
+    	return p
+    }
+}
 
 // 		// Conjugate origin with motor. Unlike other operations the motor MUST be
 // 		// normalized prior to usage b is the rotor component (p1) c is the
