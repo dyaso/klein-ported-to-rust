@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::{Plane, Point, Line, IdealLine, Branch, Dual};
+use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 
 /// Poincaré Dual
 ///
@@ -60,21 +60,20 @@ impl Not for Dual {
     type Output = Dual;
     #[inline]
     fn not(self) -> Self::Output {
-        Dual{p: self.q, q: self.p}
+        Dual {
+            p: self.q,
+            q: self.p,
+        }
     }
 }
 
-
-
 use std::ops::BitAnd;
-
-
 
 impl BitAnd<Point> for Point {
     type Output = Line;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
 
@@ -82,7 +81,7 @@ impl BitAnd<Line> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Line) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
 
@@ -91,7 +90,7 @@ impl BitAnd<Point> for Line {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self
+        return rhs & self;
     }
 }
 
@@ -99,7 +98,7 @@ impl BitAnd<Branch> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Branch) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
 
@@ -107,16 +106,15 @@ impl BitAnd<Point> for Branch {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self
+        return rhs & self;
     }
 }
-
 
 impl BitAnd<IdealLine> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: IdealLine) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
 
@@ -124,7 +122,7 @@ impl BitAnd<Point> for IdealLine {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self
+        return rhs & self;
     }
 }
 
@@ -132,7 +130,7 @@ impl BitAnd<Point> for Plane {
     type Output = Dual;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
 
@@ -140,14 +138,9 @@ impl BitAnd<Plane> for Point {
     type Output = Dual;
     #[inline]
     fn bitand(self, rhs: Plane) -> Self::Output {
-        return !(!self ^ !rhs)
+        return !(!self ^ !rhs);
     }
 }
-
-
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -164,7 +157,7 @@ mod tests {
     fn multivector_rp_pos_z_line() {
         let p1 = Point::new(0., 0., 0.);
         let p2 = Point::new(0., 0., 1.);
-        let p12:Line = p1 & p2;
+        let p12: Line = p1 & p2;
         assert_eq!(p12.e12(), 1.);
     }
 
@@ -172,7 +165,7 @@ mod tests {
     fn multivector_rp_pos_y_line() {
         let p1 = Point::new(0., -1., 0.);
         let p2 = Point::new(0., 0., 0.);
-        let p12:Line = p1 & p2;
+        let p12: Line = p1 & p2;
         assert_eq!(p12.e31(), 1.);
     }
 
@@ -180,7 +173,7 @@ mod tests {
     fn multivector_rp_pos_x_line() {
         let p1 = Point::new(-2., 0., 0.);
         let p2 = Point::new(-1., 0., 0.);
-        let p12:Line = p1 & p2;
+        let p12: Line = p1 & p2;
         assert_eq!(p12.e23(), 1.);
     }
 
@@ -198,16 +191,13 @@ mod tests {
         assert_eq!(p123.e1() * 2. - p123.e2() - p123.e3() * 4. + p123.e0(), 0.);
     }
 
-    
-
     // from file: test/test_metric.cpp
-
 
     #[test]
     fn measure_point_to_point() {
         let p1 = Point::new(1., 0., 0.);
         let p2 = Point::new(0., 1., 0.);
-        let l:Line = p1 & p2;
+        let l: Line = p1 & p2;
         // Produce the squared distance between p1 and p2
         assert_eq!(l.squared_norm(), 2.);
     }
@@ -228,8 +218,8 @@ mod tests {
         p2.normalize();
         // Distance from point p1 to plane p2
         let root_two = f32::sqrt(2.);
-        println!("p2 {} {}",(p1 & p2).scalar(),root_two);
-        
+        println!("p2 {} {}", (p1 & p2).scalar(), root_two);
+
         approx_eq(f32::abs((p1 & p2).scalar()), root_two);
         // approx_eq(f32::abs((p1 ^ p2).e0123()), root_two);
     }
@@ -241,10 +231,4 @@ mod tests {
         let distance = (l & p).norm();
         approx_eq(distance, f32::sqrt(2.));
     }
-
 }
-
-
-
-
-

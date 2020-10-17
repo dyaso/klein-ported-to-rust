@@ -1,63 +1,62 @@
-use druid::kurbo::{BezPath,Circle};
-use druid::piet::{FontFamily, ImageFormat, InterpolationMode, FontWeight, FontStyle,
-
-};
+use druid::kurbo::{BezPath, Circle};
+use druid::piet::{FontFamily, FontStyle, FontWeight, ImageFormat, InterpolationMode};
 
 use druid::kurbo;
 
 use druid::widget::prelude::*;
 use druid::{
-    Affine, AppLauncher, ArcStr, Color, FontDescriptor, LocalizedString, Point as DruidPoint, Rect, TextLayout,
-    WindowDesc,
-    Data, MouseEvent
+    Affine, AppLauncher, ArcStr, Color, Data, FontDescriptor, LocalizedString, MouseEvent,
+    Point as DruidPoint, Rect, TextLayout, WindowDesc,
 };
 
-use klein::{Plane, Point, Line
-	};
+use klein::{Line, Plane, Point, Translator};
 
 #[derive(Default)]
 struct CustomWidget {
-	lower_y: f64,
-	upper_y: f64,
-	 left_x: f64,
-	right_x: f64,
+    lower_y: f64,
+    upper_y: f64,
+    left_x: f64,
+    right_x: f64,
 
     lower_plane: Plane,
     upper_plane: Plane,
-     left_plane: Plane,
+    left_plane: Plane,
     right_plane: Plane,
 
     //center_point: Rc<PGA3D>,
     center_point: Point,
-    left: f64, top: f64, scale: f64,
+    left: f64,
+    top: f64,
+    scale: f64,
 
     window_pixels: kurbo::Size,
 }
 
 impl CustomWidget {
-	fn new() -> CustomWidget {
-		CustomWidget {
-			lower_y: -2.,
-			upper_y:  2.,
-			left_x:  -2.,
-			right_x:  2.,
-			..Default::default()}
-	}
-	pub fn set_window_boundary_planes(&mut self, state: &State, window: &kurbo::Size) {
-		println!("HELSES");
-        let desired_width  = self.right_x - self.left_x;
+    fn new() -> CustomWidget {
+        CustomWidget {
+            lower_y: -2.,
+            upper_y: 2.,
+            left_x: -2.,
+            right_x: 2.,
+            ..Default::default()
+        }
+    }
+    pub fn set_window_boundary_planes(&mut self, state: &State, window: &kurbo::Size) {
+        println!("HELSES");
+        let desired_width = self.right_x - self.left_x;
         let desired_height = self.upper_y - self.lower_y;
         let desired_aspect_ratio = desired_width / desired_height;
 
-        let center_x = (self.right_x + self.left_x)  / 2.;
+        let center_x = (self.right_x + self.left_x) / 2.;
         let center_y = (self.upper_y + self.lower_y) / 2.;
 
         self.window_pixels = *window;
         let window_aspect_ratio = window.width / window.height;
 
-        self.top       = self.upper_y;
-        self.left      = self.left_x;
-        let mut right  = self.right_x;
+        self.top = self.upper_y;
+        self.left = self.left_x;
+        let mut right = self.right_x;
         let mut bottom = self.lower_y;
 
         if window_aspect_ratio > desired_aspect_ratio {
@@ -65,27 +64,27 @@ impl CustomWidget {
             self.scale = desired_height / window.height;
             let half_width = self.scale * 0.5 * window.width;
             right = center_x + half_width;
-            self.left  = center_x - half_width;
+            self.left = center_x - half_width;
         } else {
             // actual window is taller than desired viewport
             self.scale = desired_width / window.width;
             let half_height = self.scale * 0.5 * window.height;
-            self.top    = center_y + half_height;
+            self.top = center_y + half_height;
             bottom = center_y - half_height;
         }
 
-        self.lower_plane  = Plane::new(0., 1., 0., bottom as f32);
-        self.upper_plane  = Plane::new(0., 1., 0., self.top  as f32);
-        self.left_plane   = Plane::new(1.,  0., 0., self.left as f32);
-        self.right_plane  = Plane::new(1.,  0., 0., right  as f32);
+        self.lower_plane = Plane::new(0., 1., 0., bottom as f32);
+        self.upper_plane = Plane::new(0., 1., 0., self.top as f32);
+        self.left_plane = Plane::new(1., 0., 0., self.left as f32);
+        self.right_plane = Plane::new(1., 0., 0., right as f32);
 
         self.center_point = Point::new(center_x as f32, center_y as f32, 0.);
     }
 
-    fn dist(a :&Point, b :&Point) -> f32 {
+    fn dist(a: &Point, b: &Point) -> f32 {
         let d = (a.normalized() & b.normalized()).norm();
 
-        return if f32::is_nan(d) {1000000.} else {d}
+        return if f32::is_nan(d) { 1000000. } else { d };
     }
 
     pub fn draw_line(&self, ctx: &mut PaintCtx, line: &Line) {
@@ -95,62 +94,83 @@ impl CustomWidget {
         intersections.push(*line ^ self.left_plane);
         intersections.push(*line ^ self.right_plane);
 
-        intersections.sort_by(|a,b| CustomWidget::dist(a, &self.center_point)
-                                        .partial_cmp(
-                                            &CustomWidget::dist(b, &self.center_point)).unwrap());
+        intersections.sort_by(|a, b| {
+            CustomWidget::dist(a, &self.center_point)
+                .partial_cmp(&CustomWidget::dist(b, &self.center_point))
+                .unwrap()
+        });
 
         let end1 = &intersections[0].normalized();
         let end2 = &intersections[1].normalized();
-self.draw_point(ctx,end1);
-self.draw_point(ctx,end2);
+        // self.draw_point(ctx, end1);
+        // self.draw_point(ctx, end2);
         let mut path = BezPath::new();
         path.move_to(DruidPoint::new(
             ((end1.x() as f64 - self.left) / self.scale),
-            ((self.top - end1.y()  as f64) / self.scale)));
+            ((self.top - end1.y() as f64) / self.scale),
+        ));
         path.line_to(DruidPoint::new(
-            ((end2.x() as f64 - self.left) / self.scale), 
-            ((self.top - end2.y() as f64)  / self.scale)));
-        let stroke_color = Color::rgb8(150,150,150);
+            ((end2.x() as f64 - self.left) / self.scale),
+            ((self.top - end2.y() as f64) / self.scale),
+        ));
+        let stroke_color = Color::rgb8(150, 150, 150);
         ctx.stroke(path, &stroke_color, 1.0);
-
     }
 
-    pub fn draw_point(&self, ctx: &mut PaintCtx, point: &Point) {
-        let fill_color = Color::rgba8(0xa3, 0xff, 0xff, 0xFF);
+    pub fn draw_point(&self, ctx: &mut PaintCtx, point: &Point, highlight: bool) {
+        let mut fill_color = Color::rgba8(0xa3, 0xff, 0xff, 0xFF);
+        if highlight {
+            fill_color = Color::rgba8(0xff, 0x70, 0x70, 0xff);
+        }
 
         ctx.fill(
-            Circle::new(DruidPoint::new(
-                ((point.x() as f64 - self.left) / self.scale), 
-                ((self.top - point.y() as f64)  / self.scale)), 15.0),
-                // ((1.0 - self.left) / self.scale), 
-                // ((self.top - 1.0)  / self.scale)), 15.0),
+            Circle::new(
+                DruidPoint::new(
+                    ((point.x() as f64 - self.left) / self.scale),
+                    ((self.top - point.y() as f64) / self.scale),
+                ),
+                15.0,
+            ),
             &fill_color,
-            
         );
-
     }
 
-    pub fn mouse_move(&self, mouse: &MouseEvent) {
+    pub fn mouse_move(&self, mouse: &MouseEvent, data: &mut State) {
         let x_portion = (mouse.pos.x / self.window_pixels.width);
-        let x_coord = self.left_plane.x()*self.left_plane.d()*(1.-x_portion as f32) + (self.right_plane.x()*self.right_plane.d())*x_portion as f32;
+        let x_coord = self.left_plane.x() * self.left_plane.d() * (1. - x_portion as f32)
+            + (self.right_plane.x() * self.right_plane.d()) * x_portion as f32;
         let y_portion = (mouse.pos.y / self.window_pixels.height);
-        let y_coord = self.upper_plane.y()*self.upper_plane.d()*(1.-y_portion as f32) + self.lower_plane.y()*self.lower_plane.d()*y_portion as f32;
+        let y_coord = self.upper_plane.y() * self.upper_plane.d() * (1. - y_portion as f32)
+            + self.lower_plane.y() * self.lower_plane.d() * y_portion as f32;
         // let mouse_point = (x_plane^y_plane.normalized()^PGA3D::e3());
         // let mouse_y = mouse.pos.y;
-        // let y_plane = 
-        println!("plane {} {}",self.upper_plane.y(),self.upper_plane.d());
-        println!("mosue pos {} {}",x_coord,y_coord);
+        // let y_plane =
+
+        let mouse = Point::new(x_coord, y_coord, 0.);
+        data.mouse_over = None;
+        for (i, p) in data.points.iter().enumerate() {
+            // println!("mouse point {} {}",i, (mouse & *p).norm());
+            if (mouse & *p).norm() < 0.07 {
+                println!("over point {}", i);
+                data.mouse_over = Some(i);
+            }
+        }
+        println!("mouse state {:?}", data.mouse_over);
+
         // println!("mosue pos {} {}",mouse_point.get032(), mouse_point.get013())
     }
-
 }
 
-#[derive(Clone,Data,Default)]
-struct State {
-}
+use std::rc::Rc;
+
+#[derive(Clone, Data, Default)]
+struct State 
+    {points: Rc<Vec<Point>>,
+     mouse_over: Option<usize>,
+ }
 
 impl Widget<State> for CustomWidget {
-    fn event(&mut self, ctx: &mut EventCtx, event: &Event, _data: &mut State, _env: &Env) {
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut State, _env: &Env) {
         match event {
             Event::WindowConnected => {
                 ctx.request_focus();
@@ -159,7 +179,12 @@ impl Widget<State> for CustomWidget {
                 println!("key down event {:?}", e);
             }
             Event::MouseMove(e) => {
-                self.mouse_move(e);
+                let old = data.mouse_over;
+                self.mouse_move(e, data);
+                if data.mouse_over != old {
+                            ctx.request_paint();
+
+                }
             }
             _ => {
                 println!("unhandled input event {:?}", event);
@@ -167,27 +192,21 @@ impl Widget<State> for CustomWidget {
         }
     }
 
-    fn lifecycle(
-        &mut self,
-        ctx: &mut LifeCycleCtx,
-        event: &LifeCycle,
-        data: &State,
-        _env: &Env,
-    ) {
+    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &State, _env: &Env) {
         match event {
             LifeCycle::Size(s) => {
                 self.set_window_boundary_planes(data, s);
             }
             LifeCycle::WidgetAdded => {
-               ctx.register_for_focus();
+                ctx.register_for_focus();
             }
-            _ => {println!("unhandled lifecycle event: {:?}", event)
-            }
+            _ => println!("unhandled lifecycle event: {:?}", event),
         }
     }
 
     fn update(&mut self, _ctx: &mut UpdateCtx, _old_data: &State, _data: &State, _env: &Env) {
-        println!("update event: {}",0);
+
+        // println!("update event: {}", );
     }
 
     fn layout(
@@ -206,12 +225,10 @@ impl Widget<State> for CustomWidget {
         bc.max()
     }
 
-
     // The paint method gets called last, after an event flow.
     // It goes event -> update -> layout -> paint, and each method can influence the next.
     // Basically, anything that changes the appearance of a widget causes a paint.
-    fn paint(&mut self, ctx: &mut PaintCtx
-        , data: &State, env: &Env) {
+    fn paint(&mut self, ctx: &mut PaintCtx, data: &State, env: &Env) {
         // Let's draw a picture with Piet!
 
         // Clear the whole widget with the color of your choice
@@ -237,44 +254,83 @@ impl Widget<State> for CustomWidget {
         // // Stroke the path with thickness 1.0
         // ctx.stroke(path, &stroke_color, 1.0);
 
+        let mut over1 = false;
+        let mut over2 = false;
+        if let Some(i) = data.mouse_over {
+            println!("mouse over {}",i);
+            if i == 0 {
+                over1 = true;
 
-        let p1 = Point::new(0.,   1., 0.);
-        let p2 = Point::new(0.94, 0.,  0.);
+            } else if i==1 {
+                over2 = true;
+            }
 
-         let l = &(p1&p2);
+        }
+        let p1 = data.points[0];
+        let p2 = data.points[1];
 
-        self.draw_point(ctx, &p1);
-        self.draw_point(ctx, &p2);
+        let l = p1 & p2;
 
-         self.draw_line(ctx, l);
+        self.draw_point(ctx, &p1, over1);
+        self.draw_point(ctx, &p2, over2);
 
-//         // 0 = same plane (intersect at origin)
-//         // -1e02 parallel planes separated but parallel
-//         // 0.0995037e01 + -0.9950371e02 + -0.0995037e12 intersect in line
+        let l2 = &(Point::new(0.3, 0., 0.) & Point::new(0., 1., 0.));
 
-//         // Rectangles: the path for practical people
-// //        let rect = Rect::from_origin_size((10., 10.), (100., 100.));
-//         // Note the Color:rgba8 which includes an alpha channel (7F in this case)
-	    let fill_color = Color::rgba8(0xa3, 0xa3, 0xa3, 0xFF);
-// //        ctx.fill(rect, &fill_color);
-
-
-//         ctx.stroke(
-//             Circle::new(Point::new(data.x as f64, data.y as f64), 15.0),
-//             &fill_color,
-//             5.0,
-//         );
+let zplane = Plane::new(0.,0.,1.,0.);
 
 
+        let z1 = Point::new(0., 0., 1.);
+        let pz = p1 + z1;
+        println!("{}", p1);
+        println!("{}", pz);
+
+        let trans = Translator::translator(1.,0.,0.,1.);
+
+        let plan = l | zplane;
+        // let plan = (p1 & p2 & Point::direction(0., 0., 1.));
+
+        self.draw_line(ctx, &l);
+        self.draw_line(ctx, l2);
+
+
+        let int = *l2 ^ plan;
+        self.draw_point(ctx, &int.normalized(), false);
+
+
+
+        // let zAxis = 
+        //let p = *l & (*l2 ^ Point::direction(0., 0., 1.));
+
+        println!("{}", plan);
+        // self.draw_point(ctx, &p);
+
+
+        //         // 0 = same plane (intersect at origin)
+        //         // -1e02 parallel planes separated but parallel
+        //         // 0.0995037e01 + -0.9950371e02 + -0.0995037e12 intersect in line
+
+        //         // Rectangles: the path for practical people
+        // //        let rect = Rect::from_origin_size((10., 10.), (100., 100.));
+        //         // Note the Color:rgba8 which includes an alpha channel (7F in this case)
+        let fill_color = Color::rgba8(0xa3, 0xa3, 0xa3, 0xFF);
+        // //        ctx.fill(rect, &fill_color);
+
+        //         ctx.stroke(
+        //             Circle::new(Point::new(data.x as f64, data.y as f64), 15.0),
+        //             &fill_color,
+        //             5.0,
+        //         );
 
         // Text is easy; in real use TextLayout should be stored in the widget
         // and reused.
-        let mut layout = TextLayout::<ArcStr>::from_text("hello");//data.to_owned());
-        layout.set_font(FontDescriptor::new(FontFamily::SANS_SERIF).
-            with_size(24.0)//.with_weight(FontWeight::BOLD)
-            .with_style(FontStyle::Italic));
+        let mut layout = TextLayout::<ArcStr>::from_text("hello"); //data.to_owned());
+        layout.set_font(
+            FontDescriptor::new(FontFamily::SANS_SERIF)
+                .with_size(24.0) //.with_weight(FontWeight::BOLD)
+                .with_style(FontStyle::Italic),
+        );
         layout.set_text_color(fill_color);
-//        layout.set_text_style(FontStyle::Italic);
+        //        layout.set_text_style(FontStyle::Italic);
         layout.rebuild_if_needed(ctx.text(), env);
 
         // Let's rotate our text slightly. First we save our current (default) context:
@@ -285,30 +341,28 @@ impl Widget<State> for CustomWidget {
         });
         // When we exit with_save, the original context's rotation is restored
 
-//drawtext(ctx);
-     // let layout2 = ctx
+        //drawtext(ctx);
+        // let layout2 = ctx
         // .text()
 
-// let mut moo: () = layout2;
+        // let mut moo: () = layout2;
         // .new_text_layout("Helloo piet!");
         // .font(FontFamily::SYSTEM_UI, 24.0)
-// .default_attribute(FontStyle::Italic)
-// .default_attribute(FontWeight::BOLD)
+        // .default_attribute(FontStyle::Italic)
+        // .default_attribute(FontWeight::BOLD)
         // .default_attribute(TextAttribute::TextColor(RED_ALPHA))
         // .build()?;
 
-//     let w: f64 = layout2.size().width;
-//     rc.draw_text(&layout2, (80.0, 10.0));
+        //     let w: f64 = layout2.size().width;
+        //     rc.draw_text(&layout2, (80.0, 10.0));
 
-//     rc.stroke(Line::new((80.0, 12.0), (80.0 + w, 12.0)), &RED_ALPHA, 1.0);
+        //     rc.stroke(Line::new((80.0, 12.0), (80.0 + w, 12.0)), &RED_ALPHA, 1.0);
 
-//     rc.with_save(|rc| {
-//         rc.transform(Affine::rotate(0.1));
-//         rc.draw_text(&layout2, (80.0, 10.0));
-//         Ok(())
-//     })?;
-
-
+        //     rc.with_save(|rc| {
+        //         rc.transform(Affine::rotate(0.1));
+        //         rc.draw_text(&layout2, (80.0, 10.0));
+        //         Ok(())
+        //     })?;
 
         // Let's burn some CPU to make a (partially transparent) image buffer
         let image_data = make_image_data(256, 256);
@@ -320,17 +374,35 @@ impl Widget<State> for CustomWidget {
     }
 }
 
-
-
-
-
+fn draw_triangle(ctx: &mut PaintCtx, idx: usize, vertices: Vec<Point>, indices: Vec<Vec<usize>>) {
+    
+}
 
 pub fn main() {
     let window = WindowDesc::new(|| CustomWidget::new()).title(
-        LocalizedString::new("custom-widget-demo-window-title").with_placeholder("z=0 plane 2d graphics"),
+        LocalizedString::new("custom-widget-demo-window-title")
+            .with_placeholder("z=0 plane 2d graphics"),
     );
 
-    let mut s = State{..Default::default()};
+    let pi = std::f32::consts::PI;
+    let sh = f32::sin(pi/6.);
+    let lo = f32::cos(pi/6.);
+    let mesh: Vec<Point> = vec!(
+        Point::new(0., 1., 0.),
+        Point::new(0., -sh, -lo),
+        Point::new(-lo, -sh, sh),
+        Point::new(-lo, -sh, sh),
+        );
+    let indices: Vec<Vec<usize>> 
+        = vec!(vec!(0,1,2),vec!(0,2,3),vec!(0,3,1),vec!(1,3,2));
+
+    let mut s = State {
+        ..Default::default()
+    };
+
+    let mut ps = Rc::get_mut(&mut s.points).unwrap();
+    ps.push(Point::new(0., 0.6, 0.));
+    ps.push(Point::new(0.94, 0., 0.));
 
     AppLauncher::with_window(window)
         .use_simple_logger()
@@ -338,8 +410,6 @@ pub fn main() {
         // .launch("Druid + Piet".to_string())
         .expect("launch failed");
 }
-
-
 
 fn make_image_data(width: usize, height: usize) -> Vec<u8> {
     let mut result = vec![0; width * height * 4];

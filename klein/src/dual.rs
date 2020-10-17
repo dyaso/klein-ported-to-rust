@@ -3,7 +3,7 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 /// Dual Numbers
 /// A dual number is a multivector of the form $p + q\mathbf{e}_{0123}$.
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct Dual {
     pub p: f32,
     pub q: f32,

@@ -1,14 +1,12 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, rsqrt_nr1, rcp_nr1}; // hi_dp, hi_dp_bc, };
+use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
 //use crate::detail::exp_log::{simd_exp};
 
-
-
-use crate::{Plane, Point, Line, IdealLine, Branch, Dual, Rotor, Motor, Translator};
 use crate::util::ApplyOp;
+use crate::{Branch, Dual, IdealLine, Line, Motor, Plane, Point, Rotor, Translator};
 
 /// \defgroup gp Geometric Product
 ///
@@ -76,11 +74,12 @@ use crate::util::ApplyOp;
 ///     plane p3 = m(p2);
 ///     // p3 will be approximately equal to p1
 /// ```
-
 //use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four};
-use crate::detail::geometric_product::{gp00, gpLL, gp03_noflip, gp03_flip, gp11, gp33, gp12, gpRT, gpMM};
+use crate::detail::geometric_product::{
+    gp00, gp03_flip, gp03_noflip, gp11, gp12, gp33, gpLL, gpMM, gpRT,
+};
 
-use std::ops::{Mul, Div};
+use std::ops::{Div, Mul};
 
 impl Mul<Plane> for Plane {
     type Output = Motor;
@@ -88,7 +87,7 @@ impl Mul<Plane> for Plane {
     fn mul(self, p: Plane) -> Motor {
         let mut out = Motor::default();
         gp00(self.p0_, p.p0_, &mut out.p1_, &mut out.p2_);
-        return out
+        return out;
     }
 }
 
@@ -98,7 +97,7 @@ impl Mul<Point> for Plane {
     fn mul(self, p: Point) -> Motor {
         let mut out = Motor::default();
         gp03_noflip(self.p0_, p.p3_, &mut out.p1_, &mut out.p2_);
-        return out
+        return out;
     }
 }
 
@@ -108,7 +107,7 @@ impl Mul<Plane> for Point {
     fn mul(self, rhs: Plane) -> Motor {
         let mut out = Motor::default();
         gp03_flip(rhs.p0_, self.p3_, &mut out.p1_, &mut out.p2_);
-        return out
+        return out;
     }
 }
 
@@ -118,7 +117,7 @@ impl Mul<Rotor> for Rotor {
     fn mul(self, rhs: Rotor) -> Rotor {
         let mut out = Rotor::default();
         gp11(self.p1_, rhs.p1_, &mut out.p1_);
-        return out
+        return out;
     }
 }
 
@@ -130,8 +129,15 @@ impl Mul<Line> for Line {
     #[inline]
     fn mul(self, rhs: Line) -> Motor {
         let mut out = Motor::default();
-        gpLL(self.p1_, self.p2_, rhs.p1_, rhs.p2_, &mut out.p1_, &mut out.p2_);
-        return out
+        gpLL(
+            self.p1_,
+            self.p2_,
+            rhs.p1_,
+            rhs.p2_,
+            &mut out.p1_,
+            &mut out.p2_,
+        );
+        return out;
     }
 }
 
@@ -142,15 +148,13 @@ impl Mul<Point> for Point {
     type Output = Translator;
     #[inline]
     fn mul(self, rhs: Point) -> Translator {
-	    let mut out = Translator::default();
-    	out.p2_ = gp33(self.p3_, rhs.p3_);
-    	return out
+        let mut out = Translator::default();
+        out.p2_ = gp33(self.p3_, rhs.p3_);
+        return out;
     }
 }
 
-
 // dual line
-
 
 // line dual
 
@@ -159,39 +163,25 @@ impl Mul<Translator> for Rotor {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Translator) -> Motor {
-	    let mut out = Motor::default();
-	    out.p1_ = self.p1_;
-	    out.p2_ = gpRT(false, self.p1_, rhs.p2_);
-	    return out
-	}
+        let mut out = Motor::default();
+        out.p1_ = self.p1_;
+        out.p2_ = gpRT(false, self.p1_, rhs.p2_);
+        return out;
+    }
 }
-
 
 /// Compose the action of a rotor and translator (`rhs` will be applied, then `self`)
 impl Mul<Rotor> for Translator {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Rotor) -> Motor {
-	    let mut out = Motor::default();
-	    out.p1_ = rhs.p1_;
-	    out.p2_ = gpRT(true, rhs.p1_, self.p2_);
-	    //out.p2_ = gp12(false, self.p1_, rhs.p2_);
-	    return out
-	}
+        let mut out = Motor::default();
+        out.p1_ = rhs.p1_;
+        out.p2_ = gpRT(true, rhs.p1_, self.p2_);
+        //out.p2_ = gp12(false, self.p1_, rhs.p2_);
+        return out;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /// Compose the action of two translators (this operation is commutative for
 /// these operands).
@@ -199,8 +189,8 @@ impl Mul<Translator> for Translator {
     type Output = Translator;
     #[inline]
     fn mul(self, rhs: Translator) -> Translator {
-	    return self + rhs
-	}
+        return self + rhs;
+    }
 }
 
 // impl Mul<Plane> for Point {
@@ -218,11 +208,11 @@ impl Mul<Motor> for Rotor {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Motor) -> Motor {
-	    let mut out = Motor::default();
-	    gp11(self.p1_, rhs.p1_, &mut out.p1_);
-	    out.p2_ = gp12(false, self.p1_, rhs.p2_);
-	    return out
-	}
+        let mut out = Motor::default();
+        gp11(self.p1_, rhs.p1_, &mut out.p1_);
+        out.p2_ = gp12(false, self.p1_, rhs.p2_);
+        return out;
+    }
 }
 
 /// Compose the action of a rotor and motor (`rhs` will be applied, then `self`)
@@ -230,11 +220,11 @@ impl Mul<Rotor> for Motor {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Rotor) -> Motor {
-	    let mut out = Motor::default();
-	    gp11(self.p1_, rhs.p1_, &mut out.p1_);
-	    out.p2_ = gp12(true, rhs.p1_, self.p2_);
-	    return out
-	}
+        let mut out = Motor::default();
+        gp11(self.p1_, rhs.p1_, &mut out.p1_);
+        out.p2_ = gp12(true, rhs.p1_, self.p2_);
+        return out;
+    }
 }
 
 /// Compose the action of a translator and motor (`rhs` will be applied, then `self`)
@@ -242,12 +232,14 @@ impl Mul<Motor> for Translator {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Motor) -> Motor {
-	    let mut out = Motor::default();
-	    out.p1_ = rhs.p1_;
-	    out.p2_ = gpRT(true, rhs.p1_, self.p2_);
-	    unsafe {out.p2_ = _mm_add_ps(out.p2_, rhs.p2_);}
-	    return out
-	}
+        let mut out = Motor::default();
+        out.p1_ = rhs.p1_;
+        out.p2_ = gpRT(true, rhs.p1_, self.p2_);
+        unsafe {
+            out.p2_ = _mm_add_ps(out.p2_, rhs.p2_);
+        }
+        return out;
+    }
 }
 
 /// Compose the action of a translator and motor (`rhs` will be applied, then `self`)
@@ -255,24 +247,32 @@ impl Mul<Translator> for Motor {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Translator) -> Motor {
-	    let mut out = Motor::default();
-	    out.p1_ = self.p1_;
-	    out.p2_ = gpRT(false, self.p1_, rhs.p2_);
-	    unsafe {out.p2_ = _mm_add_ps(out.p2_, self.p2_);}
-	    return out
-	}
+        let mut out = Motor::default();
+        out.p1_ = self.p1_;
+        out.p2_ = gpRT(false, self.p1_, rhs.p2_);
+        unsafe {
+            out.p2_ = _mm_add_ps(out.p2_, self.p2_);
+        }
+        return out;
+    }
 }
-
 
 /// Compose the action of two motors (`rhs` will be applied, then `self`)
 impl Mul<Motor> for Motor {
     type Output = Motor;
     #[inline]
     fn mul(self, rhs: Motor) -> Motor {
-	    let mut out = Motor::default();
-	    gpMM(self.p1_, self.p2_, rhs.p1_, rhs.p2_, &mut out.p1_, &mut out.p2_);
-	    return out
-	}
+        let mut out = Motor::default();
+        gpMM(
+            self.p1_,
+            self.p2_,
+            rhs.p1_,
+            rhs.p2_,
+            &mut out.p1_,
+            &mut out.p2_,
+        );
+        return out;
+    }
 }
 
 // [[nodiscard]] inline motor KLN_VEC_CALL operator*(motor a, motor b) noexcept
@@ -282,42 +282,27 @@ impl Mul<Motor> for Motor {
 //     return out;
 // }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Division operators
 
 impl Div<Plane> for Plane {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Plane) -> Motor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Point> for Point {
     type Output = Translator;
     #[inline]
     fn div(self, rhs: Point) -> Translator {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Branch> for Branch {
     type Output = Rotor;
     #[inline]
     fn div(self, rhs: Branch) -> Rotor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 // impl Div<Rotor> for Rotor {
@@ -331,38 +316,37 @@ impl Div<Translator> for Translator {
     type Output = Translator;
     #[inline]
     fn div(self, rhs: Translator) -> Translator {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Line> for Line {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Line) -> Motor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Rotor> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Rotor) -> Motor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Translator> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Translator) -> Motor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
 impl Div<Motor> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Motor) -> Motor {
-        return self * rhs.inverse()
+        return self * rhs.inverse();
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -373,10 +357,12 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Line, IdealLine, Branch, Plane, Point, Rotor, EulerAngles, ApplyOp, Motor, Translator};
+    use crate::{
+        ApplyOp, Branch, EulerAngles, IdealLine, Line, Motor, Plane, Point, Rotor, Translator,
+    };
 
-	#[test]
-	fn multivector_gp_plane_plane()  {
+    #[test]
+    fn multivector_gp_plane_plane() {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
         let mut p1 = Plane::new(1., 2., 3., 4.);
         let p2 = Plane::new(2., 3., -1., -2.);
@@ -394,14 +380,14 @@ mod tests {
         // assert_eq!(p3.approx_eq(p1, 0.001f), true);
 
         p1.normalize();
-        let m:Motor = p1 * p1;
+        let m: Motor = p1 * p1;
         approx_eq(m.scalar(), 1.);
     }
 
-	#[test]
-	fn multivector_gp_plane_div_plane()  {
+    #[test]
+    fn multivector_gp_plane_div_plane() {
         let p1 = Plane::new(1., 2., 3., 4.);
-		let m:Motor = p1 / p1;
+        let m: Motor = p1 / p1;
         approx_eq(m.scalar(), 1.);
         assert_eq!(m.e12(), 0.);
         assert_eq!(m.e31(), 0.);
@@ -412,14 +398,14 @@ mod tests {
         assert_eq!(m.e0123(), 0.);
     }
 
-	#[test]
-	fn multivector_gp_plane_point()  {
+    #[test]
+    fn multivector_gp_plane_point() {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p1 = Plane::new(1., 2., 3., 4.);
         let p2 = Point::new(-2., 1., 4.);
 
-        let p1p2:Motor = p1 * p2;
+        let p1p2: Motor = p1 * p2;
         assert_eq!(p1p2.scalar(), 0.);
         assert_eq!(p1p2.e01(), -5.);
         assert_eq!(p1p2.e02(), 10.);
@@ -431,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn line_normalization()    {
+    fn line_normalization() {
         let mut l = Line::new(1., 2., 3., 3., 2., 1.);
         l.normalize();
         let m: Motor = l * l.reverse();
@@ -446,12 +432,12 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_line_line()    {
+    fn multivector_gp_line_line() {
         // a*e01 + b*e02 + c*e03 + d*e23 + e*e31 + f*e12
         let mut l1 = Line::new(1., 0., 0., 3., 2., 1.);
         let mut l2 = Line::new(0., 1., 0., 4., 1., -2.);
 
-        let l1l2:Motor = l1 * l2;
+        let l1l2: Motor = l1 * l2;
         assert_eq!(l1l2.scalar(), -12.);
         assert_eq!(l1l2.e12(), 5.);
         assert_eq!(l1l2.e31(), -10.);
@@ -468,10 +454,10 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_branch_branch()    {
+    fn multivector_gp_branch_branch() {
         let b1 = Branch::new(2., 1., 3.);
         let b2 = Branch::new(1., -2., -3.);
-        let r:Rotor = b2 * b1;
+        let r: Rotor = b2 * b1;
         assert_eq!(r.scalar(), 9.);
         assert_eq!(r.e23(), 3.);
         assert_eq!(r.e31(), 9.);
@@ -486,9 +472,9 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_branch_div_branch()    {
+    fn multivector_gp_branch_div_branch() {
         let b = Branch::new(2., 1., 3.);
-        let r:Rotor = b / b;
+        let r: Rotor = b / b;
         approx_eq(r.scalar(), 1.);
         assert_eq!(r.e23(), 0.);
         assert_eq!(r.e31(), 0.);
@@ -496,9 +482,9 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_line_div_line()    {
+    fn multivector_gp_line_div_line() {
         let l = Line::new(1., -2., 2., -3., 3., -4.);
-	    let m: Motor = l / l;
+        let m: Motor = l / l;
         approx_eq(m.scalar(), 1.);
         assert_eq!(m.e12(), 0.);
         assert_eq!(m.e31(), 0.);
@@ -510,13 +496,13 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_point_plane()    {
+    fn multivector_gp_point_plane() {
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p1 = Point::new(-2., 1., 4.);
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
         let p2 = Plane::new(1., 2., 3., 4.);
 
-        let p1p2 :Motor = p1 * p2;
+        let p1p2: Motor = p1 * p2;
         assert_eq!(p1p2.scalar(), 0.);
         assert_eq!(p1p2.e01(), -5.);
         assert_eq!(p1p2.e02(), 10.);
@@ -528,47 +514,51 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_point_point()    {
+    fn multivector_gp_point_point() {
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p1 = Point::new(1., 2., 3.);
         let p2 = Point::new(-2., 1., 4.);
 
-        let p1p2:Translator = p1 * p2;
+        let p1p2: Translator = p1 * p2;
         approx_eq(p1p2.e01(), -3.);
         approx_eq(p1p2.e02(), -1.);
         approx_eq(p1p2.e03(), 1.);
 
-    //     point p3 = sqrt(p1p2)(p2);
-    //     CHECK_EQ(p3.x(), doctest::Approx(1.f));
-    //     CHECK_EQ(p3.y(), doctest::Approx(2.f));
-    //     CHECK_EQ(p3.z(), doctest::Approx(3.f));
+        //     point p3 = sqrt(p1p2)(p2);
+        //     CHECK_EQ(p3.x(), doctest::Approx(1.f));
+        //     CHECK_EQ(p3.y(), doctest::Approx(2.f));
+        //     CHECK_EQ(p3.z(), doctest::Approx(3.f));
     }
 
     #[test]
-    fn multivector_gp_point_div_point()    {
+    fn multivector_gp_point_div_point() {
         let p1 = Point::new(1., 2., 3.);
-        let t:Translator = p1 / p1;
+        let t: Translator = p1 / p1;
         assert_eq!(t.e01(), 0.);
         assert_eq!(t.e02(), 0.);
         assert_eq!(t.e03(), 0.);
     }
 
     #[test]
-    fn multivector_gp_translator_div_translator()    {
+    fn multivector_gp_translator_div_translator() {
         let t1 = Translator::translator(3., 1., -2., 3.);
-        let t2:Translator = t1 / t1;
+        let t2: Translator = t1 / t1;
         assert_eq!(t2.e01(), 0.);
         assert_eq!(t2.e02(), 0.);
         assert_eq!(t2.e03(), 0.);
     }
 
     #[test]
-    fn multivector_gp_rotor_translator()    {
-    	let mut r = Rotor::default();
-        unsafe {r.p1_ = _mm_set_ps(1., 0., 0., 1.);}
+    fn multivector_gp_rotor_translator() {
+        let mut r = Rotor::default();
+        unsafe {
+            r.p1_ = _mm_set_ps(1., 0., 0., 1.);
+        }
         let mut t = Translator::default();
-        unsafe {t.p2_   = _mm_set_ps(1., 0., 0., 0.);}
-        let m:Motor = r * t;
+        unsafe {
+            t.p2_ = _mm_set_ps(1., 0., 0., 0.);
+        }
+        let m: Motor = r * t;
         assert_eq!(m.scalar(), 1.);
         assert_eq!(m.e01(), 0.);
         assert_eq!(m.e02(), 0.);
@@ -580,12 +570,16 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_translator_rotor()    {
-    	let mut r = Rotor::default();
-    	unsafe {r.p1_ = _mm_set_ps(1., 0., 0., 1.);}
+    fn multivector_gp_translator_rotor() {
+        let mut r = Rotor::default();
+        unsafe {
+            r.p1_ = _mm_set_ps(1., 0., 0., 1.);
+        }
         let mut t = Translator::default();
-        unsafe {t.p2_   = _mm_set_ps(1., 0., 0., 0.);}
-        let m:Motor = t * r;
+        unsafe {
+            t.p2_ = _mm_set_ps(1., 0., 0., 0.);
+        }
+        let m: Motor = t * r;
         assert_eq!(m.scalar(), 1.);
         assert_eq!(m.e01(), 0.);
         assert_eq!(m.e02(), 0.);
@@ -596,51 +590,68 @@ mod tests {
         assert_eq!(m.e0123(), 1.);
     }
 
-
     #[test]
-    fn multivector_gp_motor_rotor()    {
+    fn multivector_gp_motor_rotor() {
         let mut r1 = Rotor::default();
-        unsafe {r1.p1_ = _mm_set_ps(1., 2., 3., 4.);}
+        unsafe {
+            r1.p1_ = _mm_set_ps(1., 2., 3., 4.);
+        }
         let mut t = Translator::default();
-        unsafe {t.p2_ = _mm_set_ps(3., -2., 1., -3.);}
+        unsafe {
+            t.p2_ = _mm_set_ps(3., -2., 1., -3.);
+        }
         let mut r2 = Rotor::default();
-        unsafe {r2.p1_   = _mm_set_ps(-4., 2., -3., 1.);}
+        unsafe {
+            r2.p1_ = _mm_set_ps(-4., 2., -3., 1.);
+        }
         let m1: Motor = (t * r1) * r2;
         let m2: Motor = t * (r1 * r2);
         assert_eq!(m1, m2);
     }
 
     #[test]
-    fn multivector_gp_rotor_motor()    {
+    fn multivector_gp_rotor_motor() {
         let mut r1 = Rotor::default();
-        unsafe {r1.p1_ = _mm_set_ps(1., 2., 3., 4.);}
+        unsafe {
+            r1.p1_ = _mm_set_ps(1., 2., 3., 4.);
+        }
         let mut t = Translator::default();
-        unsafe {t.p2_ = _mm_set_ps(3., -2., 1., -3.);}
+        unsafe {
+            t.p2_ = _mm_set_ps(3., -2., 1., -3.);
+        }
         let mut r2 = Rotor::default();
-        unsafe {r2.p1_   = _mm_set_ps(-4., 2., -3., 1.);}
+        unsafe {
+            r2.p1_ = _mm_set_ps(-4., 2., -3., 1.);
+        }
         let m1: Motor = r2 * (r1 * t);
         let m2: Motor = (r2 * r1) * t;
         assert_eq!(m1, m2);
     }
 
     #[test]
-    fn multivector_gp_motor_translator()    {
+    fn multivector_gp_motor_translator() {
         let mut r = Rotor::default();
-        unsafe {r.p1_ = _mm_set_ps(1., 2., 3., 4.);}
+        unsafe {
+            r.p1_ = _mm_set_ps(1., 2., 3., 4.);
+        }
         let mut t1 = Translator::default();
-        unsafe {t1.p2_ = _mm_set_ps(3., -2., 1., -3.);}
+        unsafe {
+            t1.p2_ = _mm_set_ps(3., -2., 1., -3.);
+        }
         let mut t2 = Translator::default();
-        unsafe {t2.p2_   = _mm_set_ps(-4., 2., -3., 1.);}
-        let m1:Motor = (r * t1) * t2;
-        let m2:Motor = r * (t1 * t2);
+        unsafe {
+            t2.p2_ = _mm_set_ps(-4., 2., -3., 1.);
+        }
+        let m1: Motor = (r * t1) * t2;
+        let m2: Motor = r * (t1 * t2);
         assert_eq!(m1, m2);
     }
 
     #[test]
-    fn multivector_gp_motor_motor()    {
+    fn multivector_gp_motor_motor() {
         let m1 = Motor::new(2., 3., 4., 5., 6., 7., 8., 9.);
         let m2 = Motor::new(6., 7., 8., 9., 10., 11., 12., 13.);
-        let m3:Motor = m1 * m2;
+        let m3: Motor = m1 * m2;
         assert_eq!(m3.scalar(), -86.);
         assert_eq!(m3.e23(), 36.);
         assert_eq!(m3.e31(), 32.);
@@ -652,9 +663,9 @@ mod tests {
     }
 
     #[test]
-    fn multivector_gp_motor_div_motor()    {
+    fn multivector_gp_motor_div_motor() {
         let m1 = Motor::new(2., 3., 4., 5., 6., 7., 8., 9.);
-        let m2 :Motor = m1 / m1;
+        let m2: Motor = m1 / m1;
         approx_eq(m2.scalar(), 1.);
         assert_eq!(m2.e23(), 0.);
         assert_eq!(m2.e31(), 0.);
@@ -664,7 +675,4 @@ mod tests {
         approx_eq(m2.e03(), 0.);
         approx_eq(m2.e0123(), 0.);
     }
-
-
-
 }

@@ -1,10 +1,12 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+use crate::detail::inner_product::{
+    dot00, dot03, dot11, dot33, dotPIL_flip, dotPIL_noflip, dotPL_flip, dotPL_noflip, dotPTL,
+};
 use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
-use crate::detail::inner_product::{dot00, dotPL_noflip, dotPL_flip, dotPIL_noflip, dotPIL_flip, dot03, dot11, dotPTL, dot33};
 
-use crate::{Plane, Point, Line, IdealLine, Branch, Dual};
+use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 
 use std::ops::BitOr;
 
@@ -38,7 +40,7 @@ use std::ops::BitOr;
 /// ```cpp
 ///     kln::point a{x1, y1, z1};
 ///     kln::plane b{x2, y2, z2, d2};
-///	
+///
 ///     // The line l contains a and the shortest path from a to plane b.
 ///     line l = a | b;
 /// ```
@@ -47,10 +49,12 @@ impl BitOr<Plane> for Plane {
     type Output = f32;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-	    let mut out:f32 = 0.;
-	    let s = dot00(self.p0_, rhs.p0_);
-	    unsafe {_mm_store_ss(&mut out, s);}
-	    return out
+        let mut out: f32 = 0.;
+        let s = dot00(self.p0_, rhs.p0_);
+        unsafe {
+            _mm_store_ss(&mut out, s);
+        }
+        return out;
     }
 }
 
@@ -58,15 +62,15 @@ impl BitOr<Line> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-	    return Plane::from(dotPL_noflip(self.p0_, rhs.p1_, rhs.p2_))
-	}
+        return Plane::from(dotPL_noflip(self.p0_, rhs.p1_, rhs.p2_));
+    }
 }
 
 impl BitOr<Plane> for Line {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-    	return Plane::from(dotPL_flip(rhs.p0_, self.p1_, self.p2_))
+        return Plane::from(dotPL_flip(rhs.p0_, self.p1_, self.p2_));
     }
 }
 
@@ -74,35 +78,33 @@ impl BitOr<IdealLine> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: IdealLine) -> Self::Output {
-	    return Plane::from(dotPIL_noflip(self.p0_, rhs.p2_))
-	}
+        return Plane::from(dotPIL_noflip(self.p0_, rhs.p2_));
+    }
 }
 
 impl BitOr<Plane> for IdealLine {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-    	return Plane::from(dotPIL_flip(rhs.p0_, self.p2_))
+        return Plane::from(dotPIL_flip(rhs.p0_, self.p2_));
     }
 }
-
-
 
 impl BitOr<Point> for Plane {
     type Output = Line;
     #[inline]
     fn bitor(self, rhs: Point) -> Self::Output {
-    	let mut out = Line::default();
-    	dot03(self.p0_, rhs.p3_, &mut out.p1_, &mut out.p2_);
-	    return out
-	}
+        let mut out = Line::default();
+        dot03(self.p0_, rhs.p3_, &mut out.p1_, &mut out.p2_);
+        return out;
+    }
 }
 
 impl BitOr<Plane> for Point {
     type Output = Line;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-    	return rhs | self
+        return rhs | self;
     }
 }
 
@@ -110,19 +112,19 @@ impl BitOr<Line> for Line {
     type Output = f32;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-    	let mut out:f32 = 0.;
-    	unsafe {_mm_store_ss(&mut out, dot11(self.p1_, rhs.p1_)); }
-    	return out
+        let mut out: f32 = 0.;
+        unsafe {
+            _mm_store_ss(&mut out, dot11(self.p1_, rhs.p1_));
+        }
+        return out;
     }
 }
-
-
 
 impl BitOr<Line> for Point {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-    	return Plane::from(dotPTL(self.p3_, rhs.p1_))
+        return Plane::from(dotPTL(self.p3_, rhs.p1_));
     }
 }
 
@@ -130,7 +132,7 @@ impl BitOr<Point> for Line {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Point) -> Self::Output {
-    	return rhs | self
+        return rhs | self;
     }
 }
 
@@ -138,44 +140,11 @@ impl BitOr<Point> for Point {
     type Output = f32;
     #[inline]
     fn bitor(self, rhs: Point) -> Self::Output {
-    	let mut out: f32 = 0.;
-    	unsafe {_mm_store_ss(&mut out, dot33(self.p3_, rhs.p3_))}
-    	return out
+        let mut out: f32 = 0.;
+        unsafe { _mm_store_ss(&mut out, dot33(self.p3_, rhs.p3_)) }
+        return out;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -186,17 +155,16 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Line, IdealLine, Plane, Point};
+    use crate::{IdealLine, Line, Plane, Point};
 
     #[test]
     fn multivector_ip_plane_plane() {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
         let p1 = Plane::new(1., 2., 3., 4.);
         let p2 = Plane::new(2., 3., -1., -2.);
-        let p12:f32 = p1 | p2;
+        let p12: f32 = p1 | p2;
         assert_eq!(p12, 5.);
     }
-
 
     #[test]
     fn multivector_ip_plane_line() {
@@ -206,12 +174,12 @@ mod tests {
         // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
         let l1 = Line::new(0., 0., 1., 4., 1., -2.);
 
-        let p1l1:Plane = p1 | l1;
+        let p1l1: Plane = p1 | l1;
         assert_eq!(p1l1.e0(), -3.);
         assert_eq!(p1l1.e1(), 7.);
         assert_eq!(p1l1.e2(), -14.);
         assert_eq!(p1l1.e3(), 7.);
-	}
+    }
 
     #[test]
     fn multivector_ip_line_plane() {
@@ -221,13 +189,12 @@ mod tests {
         // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
         let l1 = Line::new(0., 0., 1., 4., 1., -2.);
 
-        let p1l1:Plane = l1|p1;
+        let p1l1: Plane = l1 | p1;
         assert_eq!(p1l1.e0(), 3.);
         assert_eq!(p1l1.e1(), -7.);
         assert_eq!(p1l1.e2(), 14.);
         assert_eq!(p1l1.e3(), -7.);
-	}
-
+    }
 
     #[test]
     fn multivector_ip_plane_ideal_line() {
@@ -237,7 +204,7 @@ mod tests {
         // a*e01 + b*e02 + c*e03
         let l1 = IdealLine::new(-2., 1., 4.);
 
-        let p1l1:Plane = p1 | l1;
+        let p1l1: Plane = p1 | l1;
         assert_eq!(p1l1.e0(), -12.);
     }
 
@@ -248,7 +215,7 @@ mod tests {
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p2 = Point::new(-2., 1., 4.);
 
-		let p1p2:Line = p1 | p2;
+        let p1p2: Line = p1 | p2;
         assert_eq!(p1p2.e01(), -5.);
         assert_eq!(p1p2.e02(), 10.);
         assert_eq!(p1p2.e03(), -5.);
@@ -263,7 +230,7 @@ mod tests {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
         let p2 = Plane::new(1., 2., 3., 4.);
 
-		let p1p2:Line = p1 | p2;
+        let p1p2: Line = p1 | p2;
         assert_eq!(p1p2.e01(), -5.);
         assert_eq!(p1p2.e02(), 10.);
         assert_eq!(p1p2.e03(), -5.);
@@ -278,7 +245,7 @@ mod tests {
         let l1 = Line::new(1., 0., 0., 3., 2., 1.);
         let l2 = Line::new(0., 1., 0., 4., 1., -2.);
 
-        let l1l2:f32 = l1 | l2;
+        let l1l2: f32 = l1 | l2;
         assert_eq!(l1l2, -12.);
     }
 
@@ -289,7 +256,7 @@ mod tests {
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p2 = Point::new(-2., 1., 4.);
 
-        let l1p2:Plane = l1 | p2;
+        let l1p2: Plane = l1 | p2;
         assert_eq!(l1p2.e0(), 0.);
         assert_eq!(l1p2.e1(), -3.);
         assert_eq!(l1p2.e2(), -2.);
@@ -302,7 +269,7 @@ mod tests {
         // x*e_032 + y*e_013 + z*e_021 + e_123
         let p2 = Point::new(-2., 1., 4.);
 
-        let l1p2:Plane = p2 | l1;
+        let l1p2: Plane = p2 | l1;
         assert_eq!(l1p2.e0(), 0.);
         assert_eq!(l1p2.e1(), -3.);
         assert_eq!(l1p2.e2(), -2.);
@@ -315,7 +282,7 @@ mod tests {
         let p1 = Point::new(1., 2., 3.);
         let p2 = Point::new(-2., 1., 4.);
 
-        let p1p2:f32 = p1 | p2;
+        let p1p2: f32 = p1 | p2;
         assert_eq!(p1p2, -1.);
     }
 
@@ -324,8 +291,8 @@ mod tests {
         let p1 = Point::new(2., 2., 0.);
         let p2 = Point::new(0., 0., 0.);
         let p3 = Point::new(1., 0., 0.);
-        let l:Line = p2 & p3;
-        let mut p4 = (l | p1) ^ l;//:Point
+        let l: Line = p2 & p3;
+        let mut p4 = (l | p1) ^ l; //:Point
         p4.normalize();
 
         approx_eq(p4.e123(), 1.);
@@ -333,6 +300,4 @@ mod tests {
         approx_eq(p4.y(), 0.);
         approx_eq(p4.z(), 0.);
     }
-
-
 }

@@ -3,13 +3,15 @@ use crate::detail::sse::rcp_nr1;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+pub type Element = __m128;
+
 /// A point is represented as the multivector
 /// $x\mathbf{e}_{032} + y\mathbf{e}_{013} + z\mathbf{e}_{021} +
 /// \mathbf{e}_{123}$. The point has a trivector representation because it is
 /// the fixed point of 3 planar reflections (each of which is a grade-1
 /// multivector). In practice, the coordinate mapping can be thought of as an
 /// implementation detail.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Point {
     pub p3_: __m128,
 }
@@ -20,6 +22,23 @@ impl Default for Point {
         Point {
             p3_: unsafe { _mm_setzero_ps() },
         }
+    }
+}
+
+// // trait AsRef<T: ?Sized> {
+// //     fn as_ref(&self) -> &T;
+// // }
+// impl AsRef<Point> for Point {
+//     fn as_ref(&self) -> &Point {
+//         &(&self)
+//     }
+// }
+
+use std::fmt;
+
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point\n x: {}\n y: {}\n z: {}\n w: {}\n",self.x(), self.y(), self.z(), self.w())
     }
 }
 
@@ -36,12 +55,17 @@ impl From<__m128> for Point {
     }
 }
 
-trait Scalar {}
-
-impl Scalar for f32 {}
-impl Scalar for f64 {}
-
 impl Point {
+
+    /// Create a normalized direction
+    pub fn direction(x: f32, y: f32, z: f32) -> Point    {
+        unsafe {
+            let mut p = Point{p3_ :_mm_set_ps(z, y, x, 0.)};
+            p.normalize();
+            return p
+        }
+    }
+
     /// Component-wise constructor (homogeneous coordinate is automatically
     /// initialized to 1)
     // pub fn new(x: f32, y: f32, z: f32) -> Point {
@@ -56,37 +80,35 @@ impl Point {
         }
     }
 
-
     /// Normalize this point (division is done via rcpps with an additional
     /// Newton-Raphson refinement).
     pub fn normalize(&mut self) {
-        unsafe{
-            let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_,self.p3_, 0));
-            self.p3_        = _mm_mul_ps(self.p3_, tmp);
+        unsafe {
+            let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
+            self.p3_ = _mm_mul_ps(self.p3_, tmp);
         }
     }
 
     /// Return a normalized copy of this point.
-    pub fn normalized(self) -> Point     {
+    pub fn normalized(self) -> Point {
         let mut out = Point::clone(&self);
         out.normalize();
-        return out
+        return out;
     }
 
-    pub fn invert(&mut self)    {
+    pub fn invert(&mut self) {
         unsafe {
-            let inv_norm = rcp_nr1(_mm_shuffle_ps(self.p3_,self.p3_,0));
-            self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
-            self.p3_             = _mm_mul_ps(inv_norm, self.p3_);
+            let inv_norm = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
+            self.p3_ = _mm_mul_ps(inv_norm, self.p3_);
+            self.p3_ = _mm_mul_ps(inv_norm, self.p3_);
         }
     }
 
-    pub fn inverse(self) -> Point     {
+    pub fn inverse(self) -> Point {
         let mut out = Point::clone(&self);
         out.invert();
-        return out
+        return out;
     }
-
 
     pub fn x(self) -> f32 {
         let mut out = <[f32; 4]>::default();

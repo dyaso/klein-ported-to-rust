@@ -122,5 +122,3 @@ pub fn mat4x4_12(translated: bool, normalized: bool,b: __m128 , __m128* c, __m12
 		: _mm_add_ps(c3, _mm_set_ps(b0_2 + b1_2 + b2_2 + b3_2, 0f, 0f, 0f));
 	}
 }
-}
-}

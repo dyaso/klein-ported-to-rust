@@ -36,7 +36,7 @@ use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 ///     // p2 lies at the intersection of p1 and l2.
 ///     kln::point p2 = p1 ^ l2;
 /// ```
-use std::ops::BitXor;
+use std::ops::BitXor;   // |
 
 impl BitXor<Plane> for Plane {
     type Output = Line;

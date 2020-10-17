@@ -1,28 +1,28 @@
 mod detail;
 mod dual;
+mod exp_log_sqrt;
+mod geometric_product;
+mod inner_product;
 mod join;
 mod line;
+mod mat4x4;
 mod meet;
+mod motor;
 mod plane;
 mod point;
-mod inner_product;
-mod mat4x4;
-mod translator;
+mod projection;
 mod rotor;
-mod motor;
-mod geometric_product;
-mod exp_log_sqrt;
+mod translator;
 mod util;
 
 pub use dual::Dual;
 pub use line::{Branch, IdealLine, Line};
-pub use translator::Translator;
-pub use rotor::{Rotor, EulerAngles};
 pub use motor::Motor;
-pub use plane::{Plane};
-pub use point::Point;
+pub use plane::Plane;
+pub use point::{Element, Point};
+pub use rotor::{EulerAngles, Rotor};
+pub use translator::Translator;
 pub use util::ApplyOp;
-
 
 #[cfg(test)]
 mod tests {

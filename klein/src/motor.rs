@@ -1,16 +1,14 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, rsqrt_nr1, rcp_nr1}; // hi_dp, hi_dp_bc, };
-use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four, swMM_four};
+use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three};
+use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
-use crate::detail::exp_log::{simd_exp};
-use crate::detail::geometric_product::{gpDL};
+use crate::detail::exp_log::simd_exp;
+use crate::detail::geometric_product::gpDL;
 
-
-
-use crate::{Plane, Point, Line, IdealLine, Branch, Dual, Rotor, Translator};
 use crate::util::ApplyOp;
+use crate::{Branch, Dual, IdealLine, Line, Plane, Point, Rotor, Translator};
 
 /// \defgroup motor Motors
 ///
@@ -74,56 +72,90 @@ use crate::util::ApplyOp;
 /// @{
 /// \ingroup motor
 
-
 #[derive(Copy, Clone, Debug)]
 pub struct Motor {
     pub p1_: __m128,
     pub p2_: __m128,
 }
 
-impl Motor{
-	pub fn default() -> Motor {
-		unsafe {Motor {p1_: _mm_setzero_ps(), p2_: _mm_setzero_ps()}}
-	}
+impl Motor {
+    pub fn default() -> Motor {
+        unsafe {
+            Motor {
+                p1_: _mm_setzero_ps(),
+                p2_: _mm_setzero_ps(),
+            }
+        }
+    }
     /// Direct initialization from components. A more common way of creating a
     /// motor is to take a product between a rotor and a translator.
     /// The arguments coorespond to the multivector
     /// $a + b\mathbf{e}_{23} + c\mathbf{e}_{31} + d\mathbf{e}_{12} +\
     /// e\mathbf{e}_{01} + f\mathbf{e}_{02} + g\mathbf{e}_{03} +\
     /// h\mathbf{e}_{0123}$.
-    pub fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32) -> Motor{
-    	unsafe {Motor{p1_: _mm_set_ps(d, c, b, a), p2_: _mm_set_ps(g, f, e, h)}}
+    pub fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32) -> Motor {
+        unsafe {
+            Motor {
+                p1_: _mm_set_ps(d, c, b, a),
+                p2_: _mm_set_ps(g, f, e, h),
+            }
+        }
     }
 
-	pub fn from_rotor_and_translator(rotor:__m128, translator:__m128) -> Motor {
-		Motor {p1_: rotor, p2_: translator}
-	}
-    
+    pub fn from_rotor_and_translator(rotor: __m128, translator: __m128) -> Motor {
+        Motor {
+            p1_: rotor,
+            p2_: translator,
+        }
+    }
+
     /// Produce a screw motion rotating and translating by given amounts along a
     /// provided Euclidean axis.
     pub fn screw(ang_rad: f32, d: f32, l: Line) -> Motor {
         let mut log_m = Line::default();
         let mut out = Motor::default();
         gpDL(
-            -ang_rad * 0.5, d * 0.5, l.p1_, l.p2_, &mut log_m.p1_, &mut log_m.p2_);
+            -ang_rad * 0.5,
+            d * 0.5,
+            l.p1_,
+            l.p2_,
+            &mut log_m.p1_,
+            &mut log_m.p2_,
+        );
         simd_exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
-        return out
+        return out;
     }
 
     pub fn from_rotor(r: Rotor) -> Motor {
-        unsafe {Motor{p1_: r.p1_, p2_ :_mm_setzero_ps()}}
+        unsafe {
+            Motor {
+                p1_: r.p1_,
+                p2_: _mm_setzero_ps(),
+            }
+        }
     }
 
     pub fn from_translator(t: Translator) -> Motor {
-        unsafe {Motor{p1_: _mm_set_ss(1.), p2_: t.p2_}}
+        unsafe {
+            Motor {
+                p1_: _mm_set_ss(1.),
+                p2_: t.p2_,
+            }
+        }
     }
 
     pub fn set_rotation(&mut self, r: Rotor) {
-        unsafe {self.p1_ = r.p1_;self.p2_ = _mm_setzero_ps();}
+        unsafe {
+            self.p1_ = r.p1_;
+            self.p2_ = _mm_setzero_ps();
+        }
     }
 
     pub fn set_translation(&mut self, t: Translator) {
-        unsafe {self.p1_ = _mm_set_ss(1.); self.p2_ = t.p2_;}
+        unsafe {
+            self.p1_ = _mm_set_ss(1.);
+            self.p2_ = t.p2_;
+        }
     }
 
     /// Normalizes this motor $m$ such that $m\widetilde{m} = 1$.
@@ -142,26 +174,26 @@ impl Motor{
         // normalized motor.
 
         unsafe {
-	        let b2 = dp_bc(self.p1_, self.p1_);
-	        let s  = rsqrt_nr1(b2);
-	        let bc = dp_bc(_mm_xor_ps(self.p1_, _mm_set_ss(-0.)), self.p2_);
-	        let t  = _mm_mul_ps(_mm_mul_ps(bc, rcp_nr1(b2)), s);
+            let b2 = dp_bc(self.p1_, self.p1_);
+            let s = rsqrt_nr1(b2);
+            let bc = dp_bc(_mm_xor_ps(self.p1_, _mm_set_ss(-0.)), self.p2_);
+            let t = _mm_mul_ps(_mm_mul_ps(bc, rcp_nr1(b2)), s);
 
-	        // (s + t e0123) * motor =
-	        //
-	        // s b0 +
-	        // s b1 e23 +
-	        // s b2 e31 +
-	        // s b3 e12 +
-	        // (s c0 + t b0) e0123 +
-	        // (s c1 - t b1) e01 +
-	        // (s c2 - t b2) e02 +
-	        // (s c3 - t b3) e03
+            // (s + t e0123) * motor =
+            //
+            // s b0 +
+            // s b1 e23 +
+            // s b2 e31 +
+            // s b3 e12 +
+            // (s c0 + t b0) e0123 +
+            // (s c1 - t b1) e01 +
+            // (s c2 - t b2) e02 +
+            // (s c3 - t b3) e03
 
-	        let tmp = _mm_mul_ps(self.p2_, s);
-	        self.p2_ = _mm_sub_ps(tmp, _mm_xor_ps(_mm_mul_ps(self.p1_, t), _mm_set_ss(-0.)));
-	        self.p1_ = _mm_mul_ps(self.p1_, s);
-	    }
+            let tmp = _mm_mul_ps(self.p2_, s);
+            self.p2_ = _mm_sub_ps(tmp, _mm_xor_ps(_mm_mul_ps(self.p1_, t), _mm_set_ss(-0.)));
+            self.p1_ = _mm_mul_ps(self.p1_, s);
+        }
     }
 
     /// Return a normalized copy of this motor.
@@ -171,59 +203,61 @@ impl Motor{
         return out;
     }
 
-    pub fn invert(&mut self)    {
-    	unsafe{
-	        // s, t computed as in the normalization
-	        let b2     = dp_bc(self.p1_, self.p1_);
-	        let s      = rsqrt_nr1(b2);
-	        let bc     = dp_bc(_mm_xor_ps(self.p1_, _mm_set_ss(-0.)), self.p2_);
-	        let b2_inv = rcp_nr1(b2);
-	        let t      = _mm_mul_ps(_mm_mul_ps(bc, b2_inv), s);
-	        let neg    = _mm_set_ps(-0., -0., -0., 0.);
+    pub fn invert(&mut self) {
+        unsafe {
+            // s, t computed as in the normalization
+            let b2 = dp_bc(self.p1_, self.p1_);
+            let s = rsqrt_nr1(b2);
+            let bc = dp_bc(_mm_xor_ps(self.p1_, _mm_set_ss(-0.)), self.p2_);
+            let b2_inv = rcp_nr1(b2);
+            let t = _mm_mul_ps(_mm_mul_ps(bc, b2_inv), s);
+            let neg = _mm_set_ps(-0., -0., -0., 0.);
 
-	        // p1 * (s + t e0123)^2 = (s * p1 - t p1_perp) * (s + t e0123)
-	        // = s^2 p1 - s t p1_perp - s t p1_perp
-	        // = s^2 p1 - 2 s t p1_perp
-	        // (the scalar component above needs to be negated)
-	        // p2 * (s + t e0123)^2 = s^2 p2 NOTE: s^2 = b2_inv
-	        let mut st = _mm_mul_ps(s, t);
-	        st        = _mm_mul_ps(self.p1_, st);
-	        self.p2_       = _mm_sub_ps(_mm_mul_ps(self.p2_, b2_inv),
-	                         _mm_xor_ps(_mm_add_ps(st, st), _mm_set_ss(-0.)));
-	        self.p2_       = _mm_xor_ps(self.p2_, neg);
+            // p1 * (s + t e0123)^2 = (s * p1 - t p1_perp) * (s + t e0123)
+            // = s^2 p1 - s t p1_perp - s t p1_perp
+            // = s^2 p1 - 2 s t p1_perp
+            // (the scalar component above needs to be negated)
+            // p2 * (s + t e0123)^2 = s^2 p2 NOTE: s^2 = b2_inv
+            let mut st = _mm_mul_ps(s, t);
+            st = _mm_mul_ps(self.p1_, st);
+            self.p2_ = _mm_sub_ps(
+                _mm_mul_ps(self.p2_, b2_inv),
+                _mm_xor_ps(_mm_add_ps(st, st), _mm_set_ss(-0.)),
+            );
+            self.p2_ = _mm_xor_ps(self.p2_, neg);
 
-	        self.p1_ = _mm_xor_ps(_mm_mul_ps(self.p1_, b2_inv), neg);
-	    }
+            self.p1_ = _mm_xor_ps(_mm_mul_ps(self.p1_, b2_inv), neg);
+        }
     }
 
     pub fn inverse(self) -> Motor {
         let mut out = Motor::clone(&self);
         out.invert();
-        return out
+        return out;
     }
 
-	/// Constrains the motor to traverse the shortest arc
-	pub fn constrain(&mut self) {
-		unsafe{
-			let um = _mm_and_ps(self.p1_, _mm_set_ss(-0.));
-	        let mask: __m128 = _mm_shuffle_ps(um, um, 0);
-	        self.p1_         = _mm_xor_ps(mask, self.p1_);
-	        self.p2_         = _mm_xor_ps(mask, self.p2_);
-	    }
+    /// Constrains the motor to traverse the shortest arc
+    pub fn constrain(&mut self) {
+        unsafe {
+            let um = _mm_and_ps(self.p1_, _mm_set_ss(-0.));
+            let mask: __m128 = _mm_shuffle_ps(um, um, 0);
+            self.p1_ = _mm_xor_ps(mask, self.p1_);
+            self.p2_ = _mm_xor_ps(mask, self.p2_);
+        }
+    }
 
-	}
+    pub fn constrained(self) -> Motor {
+        let mut out = Motor::clone(&self);
+        out.constrain();
+        return out;
+    }
 
-	pub fn constrained(self) -> Motor {
-		let mut out = Motor::clone(&self);
-		out.constrain();
-		return out
-	}
-
-
-    pub fn scalar(self) -> f32    {
+    pub fn scalar(self) -> f32 {
         let mut out: f32 = 0.;
-        unsafe {_mm_store_ss(&mut out, self.p1_);}
-        return out
+        unsafe {
+            _mm_store_ss(&mut out, self.p1_);
+        }
+        return out;
     }
     pub fn e12(self) -> f32 {
         let mut out = <[f32; 4]>::default();
@@ -297,19 +331,22 @@ impl Motor{
         -self.e03()
     }
 
-    pub fn e0123(self) -> f32    {
+    pub fn e0123(self) -> f32 {
         let mut out: f32 = 0.;
-        unsafe {_mm_store_ss(&mut out, self.p2_);}
-        return out
+        unsafe {
+            _mm_store_ss(&mut out, self.p2_);
+        }
+        return out;
     }
 
     pub fn reverse(self) -> Motor {
-    	unsafe {
-    		let flip : __m128 = _mm_set_ps(-0., -0., -0., 0.);
-    		return Motor::from_rotor_and_translator(
-    			 _mm_xor_ps(self.p1_, flip), 
-    			 _mm_xor_ps(self.p2_, flip));
-    	}
+        unsafe {
+            let flip: __m128 = _mm_set_ps(-0., -0., -0., 0.);
+            return Motor::from_rotor_and_translator(
+                _mm_xor_ps(self.p1_, flip),
+                _mm_xor_ps(self.p2_, flip),
+            );
+        }
     }
 }
 
@@ -323,7 +360,10 @@ impl Neg for Motor {
         unsafe {
             let flip: __m128 = _mm_set1_ps(-0.);
 
-            return Self::from_rotor_and_translator(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip));
+            return Self::from_rotor_and_translator(
+                _mm_xor_ps(self.p1_, flip),
+                _mm_xor_ps(self.p2_, flip),
+            );
         }
     }
 }
@@ -341,9 +381,11 @@ impl PartialEq for Motor {
 
 impl ApplyOp<Plane> for Motor {
     fn apply_to(self, p: Plane) -> Plane {
-    /// Conjugates a plane $p$ with this motor and returns the result
-    /// $mp\widetilde{m}$.
-        unsafe {return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_))}
+        /// Conjugates a plane $p$ with this motor and returns the result
+        /// $mp\widetilde{m}$.
+        unsafe {
+            return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
+        }
     }
 }
 
@@ -351,7 +393,7 @@ impl ApplyOp<Point> for Motor {
     /// Conjugates a point $p$ with this motor and returns the result
     /// $mp\widetilde{m}$.
     fn apply_to(self, p: Point) -> Point {
-        unsafe {return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))}
+        unsafe { return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_)) }
     }
 }
 
@@ -359,8 +401,8 @@ impl ApplyOp<Point> for Motor {
 /// $m\ell \widetilde{m}$.
 impl ApplyOp<Line> for Motor {
     fn apply_to(self, rhs: Line) -> Line {
-    	let (branch, ideal) = swMM_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
-        return Line::from(branch, ideal)
+        let (branch, ideal) = swMM_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
+        return Line::from(branch, ideal);
     }
 }
 
@@ -373,124 +415,122 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Line, IdealLine, Plane, Point, Rotor, EulerAngles, ApplyOp, Motor, Translator};
+    use crate::{ApplyOp, EulerAngles, IdealLine, Line, Motor, Plane, Point, Rotor, Translator};
 
-	#[test]
-	fn motor_plane() {
-	    let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-	    let p1 = Plane::new(3., 2., 1., -1.);
-	    let p2:Plane = m.apply_to(p1);
-	    assert_eq!(p2.x(), 78.);
-	    assert_eq!(p2.y(), 60.);
-	    assert_eq!(p2.z(), 54.);
-	    assert_eq!(p2.d(), 358.);
-	}
+    #[test]
+    fn motor_plane() {
+        let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+        let p1 = Plane::new(3., 2., 1., -1.);
+        let p2: Plane = m.apply_to(p1);
+        assert_eq!(p2.x(), 78.);
+        assert_eq!(p2.y(), 60.);
+        assert_eq!(p2.z(), 54.);
+        assert_eq!(p2.d(), 358.);
+    }
 
+    #[test]
+    fn motor_point() {
+        let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+        let p1 = Point::new(-1., 1., 2.);
+        let p2 = m.apply_to(p1);
+        assert_eq!(p2.x(), -12.);
+        assert_eq!(p2.y(), -86.);
+        assert_eq!(p2.z(), -86.);
+        assert_eq!(p2.w(), 30.);
+    }
 
-	#[test]
-	fn motor_point()	{
-	    let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-	    let p1 = Point::new(-1., 1., 2.);
-	    let p2 = m.apply_to(p1);
-	    assert_eq!(p2.x(), -12.);
-	    assert_eq!(p2.y(), -86.);
-	    assert_eq!(p2.z(), -86.);
-	    assert_eq!(p2.w(), 30.);
-	}
+    #[test]
+    fn motor_constrain() {
+        let mut m1 = Motor::new(1., 2., 3., 4., 5., 6., 7., 8.);
+        let mut m2 = m1.constrained();
+        assert_eq!(m1, m2);
 
-	#[test]
-	fn motor_constrain()	{
-	    let mut m1 = Motor::new(1., 2., 3., 4., 5., 6., 7., 8.);
-	    let mut m2 = m1.constrained();
-	    assert_eq!(m1, m2);
+        m1 = -m1;
+        m2 = m1.constrained();
+        assert_eq!(m1, -m2);
+    }
 
-	    m1 = -m1;
-	    m2 = m1.constrained();
-	    assert_eq!(m1, -m2);
-	}
+    #[test]
+    fn construct_motor() {
+        let pi = std::f32::consts::PI;
+        let r = Rotor::rotor(pi * 0.5, 0., 0., 1.);
+        let t = Translator::translator(1., 0., 0., 1.);
+        let mut m: Motor = r * t;
+        let p1 = Point::new(1., 0., 0.);
+        let mut p2: Point = m.apply_to(p1);
+        assert_eq!(p2.x(), 0.);
+        approx_eq(p2.y(), -1.);
+        approx_eq(p2.z(), 1.);
 
-	#[test]
-	fn construct_motor()	{
-	    let pi = std::f32::consts::PI;
-	    let r = Rotor::rotor(pi * 0.5, 0., 0., 1.);
-	    let t = Translator::translator(1., 0., 0., 1.);
-	    let mut m : Motor = r * t;
-	    let p1 = Point::new(1., 0., 0.);
-	    let mut p2 : Point = m.apply_to(p1);
-	    assert_eq!(p2.x(), 0.);
-	    approx_eq(p2.y(), -1.);
-	    approx_eq(p2.z(), 1.);
+        // Rotation and translation about the same axis commutes
+        m = t * r;
+        p2 = m.apply_to(p1);
+        assert_eq!(p2.x(), 0.);
+        approx_eq(p2.y(), -1.);
+        approx_eq(p2.z(), 1.);
 
-	    // Rotation and translation about the same axis commutes
-	    m  = t * r;
-	    p2 = m.apply_to(p1);
-	    assert_eq!(p2.x(), 0.);
-	    approx_eq(p2.y(), -1.);
-	    approx_eq(p2.z(), 1.);
+        let l: Line = m.log();
+        assert_eq!(l.e23(), 0.);
+        //CHECK_EQ(l.e12(), doctest::Approx(0.7854).epsilon(0.001));
+        approx_eq(l.e12(), 0.785398); //.epsilon(0.001);
+        assert_eq!(l.e31(), 0.);
+        assert_eq!(l.e01(), 0.);
+        assert_eq!(l.e02(), 0.);
+        approx_eq(l.e03(), -0.5);
+    }
 
-	    let l : Line = m.log();
-	    assert_eq!(l.e23(), 0.);
-	    //CHECK_EQ(l.e12(), doctest::Approx(0.7854).epsilon(0.001));
-	    approx_eq(l.e12(), 0.785398);//.epsilon(0.001);
-	    assert_eq!(l.e31(), 0.);
-	    assert_eq!(l.e01(), 0.);
-	    assert_eq!(l.e02(), 0.);
-	    approx_eq(l.e03(), -0.5);
-	}
+    #[test]
+    fn construct_motor_via_screw_axis() {
+        let pi = std::f32::consts::PI;
+        let m = Motor::screw(pi * 0.5, 1., Line::new(0., 0., 0., 0., 0., 1.));
+        let p1 = Point::new(1., 0., 0.);
+        let p2 = m.apply_to(p1);
+        approx_eq(p2.x(), 0.);
+        approx_eq(p2.y(), 1.);
+        approx_eq(p2.z(), 1.);
+    }
 
+    #[test]
+    fn motor_line() {
+        let m = Motor::new(2., 4., 3., -1., -5., -2., 2., -3.);
+        // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
+        let l1 = Line::new(-1., 2., -3., -6., 5., 4.);
+        let l2: Line = m.apply_to(l1);
+        assert_eq!(l2.e01(), 6.);
+        assert_eq!(l2.e02(), 522.);
+        assert_eq!(l2.e03(), 96.);
+        assert_eq!(l2.e12(), -214.);
+        assert_eq!(l2.e31(), -148.);
+        assert_eq!(l2.e23(), -40.);
+    }
 
-	#[test]
-	fn construct_motor_via_screw_axis()	{
-	    let pi = std::f32::consts::PI;
-	    let m = Motor::screw(pi * 0.5, 1., Line::new(0., 0., 0., 0., 0., 1.));
-	    let p1 = Point::new(1., 0., 0.);
-	    let p2 = m.apply_to(p1);
-	    approx_eq(p2.x(), 0.);
-	    approx_eq(p2.y(), 1.);
-	    approx_eq(p2.z(), 1.);
-	}
+    #[test]
+    fn normalize_motor() {
+        let mut m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+        m.normalize();
+        let norm: Motor = m * m.reverse();
+        approx_eq(norm.scalar(), 1.);
+        approx_eq(norm.e0123(), 0.);
+    }
 
-	#[test]
-	fn motor_line()	{
-	    let m = Motor::new(2., 4., 3., -1., -5., -2., 2., -3.);
-	    // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
-	    let l1 = Line::new(-1., 2., -3., -6., 5., 4.);
-	    let l2:Line = m.apply_to(l1);
-	    assert_eq!(l2.e01(), 6.);
-	    assert_eq!(l2.e02(), 522.);
-	    assert_eq!(l2.e03(), 96.);
-	    assert_eq!(l2.e12(), -214.);
-	    assert_eq!(l2.e31(), -148.);
-	    assert_eq!(l2.e23(), -40.);
-	}
+    #[test]
+    fn motor_sqrt() {
+        let pi = std::f32::consts::PI;
+        let m = Motor::screw(
+            pi * 0.5,
+            3.,
+            Line::new(3., 1., 2., 4., -2., 1.).normalized(),
+        );
 
-	#[test]
-	fn normalize_motor()	{
-	    let mut m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-	    m.normalize();
-	    let norm : Motor = m * m.reverse();
-		approx_eq(norm.scalar(), 1.);
-		approx_eq(norm.e0123(), 0.);
-	}
-
-
-	#[test]
-	fn motor_sqrt()	{
-   	    let pi = std::f32::consts::PI;
-	    let m = Motor::screw(
-	        pi * 0.5, 3., Line::new(3., 1., 2., 4., -2., 1.).normalized());
-
-	    let mut m2 : Motor = m.sqrt();
-	    m2       = m2 * m2;
-	    approx_eq(m.scalar(), m2.scalar());
-	    approx_eq(m.e01(), m2.e01());
-	    approx_eq(m.e02(), m2.e02());
-	    approx_eq(m.e03(), m2.e03());
-	    approx_eq(m.e23(), m2.e23());
-	    approx_eq(m.e31(), m2.e31());
-	    approx_eq(m.e12(), m2.e12());
-	    approx_eq(m.e0123(), m2.e0123());
-	}
+        let mut m2: Motor = m.sqrt();
+        m2 = m2 * m2;
+        approx_eq(m.scalar(), m2.scalar());
+        approx_eq(m.e01(), m2.e01());
+        approx_eq(m.e02(), m2.e02());
+        approx_eq(m.e03(), m2.e03());
+        approx_eq(m.e23(), m2.e23());
+        approx_eq(m.e31(), m2.e31());
+        approx_eq(m.e12(), m2.e12());
+        approx_eq(m.e0123(), m2.e0123());
+    }
 }
-
-

@@ -1,17 +1,6 @@
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
+use crate::{Line, Plane, Point};
 
-use crate::{Plane, Point, Line};
-
-#include "inner_product.hpp"
-#include "line.hpp"
-#include "meet.hpp"
-#include "plane.hpp"
-#include "point.hpp"
-
-namespace kln
-{
-/// \defgroup proj Projections
+/// Projections
 ///
 /// Projections in Geometric Algebra take on a particularly simple form.
 /// For two geometric entities $a$ and $b$, there are two cases to consider.
@@ -36,26 +25,29 @@ namespace kln
 /// from what one may have seen before, additional clarification is provided
 /// below.
 
-/// \addtogroup proj
-/// @{
-
-/// Project a point onto a line
-inline point KLN_VEC_CALL project(point a, line b) noexcept
-{
-    return {(a | b) ^ b};
+trait Project<O> {
+    #[inline]
+    fn project(self, other: O) -> Self;
 }
+
+macro_rules! project_onto_lower_grade {
+    ( $a:ty, $b:ty ) => {
+        impl Project<$b> for $a {
+            fn project(self, b: $b) -> $a {
+                let a = self;
+                (a | b) ^ b
+            }
+        }
+    };
+}
+
+project_onto_lower_grade!(Point, Line);
 
 /// Project a point onto a plane
-inline point KLN_VEC_CALL project(point a, plane b) noexcept
-{
-    return {(a | b) ^ b};
-}
+project_onto_lower_grade!(Point, Plane);
 
 /// Project a line onto a plane
-inline line KLN_VEC_CALL project(line a, plane b) noexcept
-{
-    return {(a | b) ^ b};
-}
+project_onto_lower_grade!(Line, Plane);
 
 /// Project a plane onto a point. Given a plane $p$ and point $P$, produces the
 /// plane through $P$ that is parallel to $p$.
@@ -65,17 +57,23 @@ inline line KLN_VEC_CALL project(line a, plane b) noexcept
 /// selects the line perpendicular to $p$ through $P$. Subsequently, taking the
 /// inner product with $P$ again selects the plane from the plane pencil of $P$
 /// _least like_ that line.
-inline plane KLN_VEC_CALL project(plane a, point b) noexcept
-{
-    return {(a | b) | b};
+
+macro_rules! project_onto_higher_grade {
+    ( $a:ty, $b:ty ) => {
+        impl Project<$b> for $a {
+            fn project(self, b: $b) -> $a {
+                let a = self;
+                (a | b) | b
+            }
+        }
+    };
 }
+
+project_onto_higher_grade!(Plane, Point);
 
 /// Project a line onto a point. Given a line $\ell$ and point $P$, produces the
 /// line through $P$ that is parallel to $\ell$.
-inline line KLN_VEC_CALL project(line a, point b) noexcept
-{
-    return {(a | b) | b};
-}
+project_onto_higher_grade!(Line, Point);
 
 /// Project a plane onto a line. Given a plane $p$ and line $\ell$, produces the
 /// plane through $\ell$ that is parallel to $p$ if $p \parallel \ell$.
@@ -83,9 +81,4 @@ inline line KLN_VEC_CALL project(line a, point b) noexcept
 /// If $p \nparallel \ell$, the result will be the plane $p'$ containing $\ell$
 /// that maximizes $p \cdot p'$ (that is, $p'$ is as parallel to $p$ as
 /// possible).
-inline plane KLN_VEC_CALL project(plane a, line b) noexcept
-{
-    return {(a | b) | b};
-}
-/// @}
-} // namespace kln
+project_onto_higher_grade!(Plane, Line);

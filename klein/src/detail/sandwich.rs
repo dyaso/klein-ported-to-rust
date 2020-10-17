@@ -62,70 +62,78 @@ pub fn sw00(a: __m128, b: __m128, p0_out: &mut __m128) {
     }
 }
 
-#[inline] pub fn sw10(a:__m128, b:__m128, p1:&mut __m128, p2:&mut __m128)		{
-	//                       b0(a1^2 + a2^2 + a3^2) +
-	// (2a3(a1 b1 + a2 b2) + b3(a3^2 - a1^2 - a2^2)) e12 +
-	// (2a1(a2 b2 + a3 b3) + b1(a1^2 - a2^2 - a3^2)) e23 +
-	// (2a2(a3 b3 + a1 b1) + b2(a2^2 - a3^2 - a1^2)) e31 +
-	//
-	// 2a0(a1 b2 - a2 b1) e03
-	// 2a0(a2 b3 - a3 b2) e01 +
-	// 2a0(a3 b1 - a1 b3) e02 +
+#[inline]
+pub fn sw10(a: __m128, b: __m128, p1: &mut __m128, p2: &mut __m128) {
+    //                       b0(a1^2 + a2^2 + a3^2) +
+    // (2a3(a1 b1 + a2 b2) + b3(a3^2 - a1^2 - a2^2)) e12 +
+    // (2a1(a2 b2 + a3 b3) + b1(a1^2 - a2^2 - a3^2)) e23 +
+    // (2a2(a3 b3 + a1 b1) + b2(a2^2 - a3^2 - a1^2)) e31 +
+    //
+    // 2a0(a1 b2 - a2 b1) e03
+    // 2a0(a2 b3 - a3 b2) e01 +
+    // 2a0(a3 b1 - a1 b3) e02 +
 
     unsafe {
-    	let a_zyzw :__m128 = _mm_shuffle_ps(a,a, 230 /* 3, 2, 1, 2 */);
-    	let a_ywyz :__m128 = _mm_shuffle_ps(a,a, 157 /* 2, 1, 3, 1 */);
-    	let a_wzwy :__m128 = _mm_shuffle_ps(a,a, 123 /* 1, 3, 2, 3 */);
+        let a_zyzw: __m128 = _mm_shuffle_ps(a, a, 230 /* 3, 2, 1, 2 */);
+        let a_ywyz: __m128 = _mm_shuffle_ps(a, a, 157 /* 2, 1, 3, 1 */);
+        let a_wzwy: __m128 = _mm_shuffle_ps(a, a, 123 /* 1, 3, 2, 3 */);
 
-    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+        let b_xzwy: __m128 = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
 
-    	let two_zero :__m128 = _mm_set_ps(2., 2., 2., 0.);
-    	*p1 = _mm_mul_ps(a, b);
-    	*p1 = _mm_add_ps(*p1, _mm_mul_ps(a_wzwy, b_xzwy));
-    	*p1 = _mm_mul_ps(*p1, _mm_mul_ps(a_ywyz, two_zero));
+        let two_zero: __m128 = _mm_set_ps(2., 2., 2., 0.);
+        *p1 = _mm_mul_ps(a, b);
+        *p1 = _mm_add_ps(*p1, _mm_mul_ps(a_wzwy, b_xzwy));
+        *p1 = _mm_mul_ps(*p1, _mm_mul_ps(a_ywyz, two_zero));
 
-    	let mut tmp:__m128 = _mm_mul_ps(a_zyzw, a_zyzw);
-    	tmp = _mm_add_ps(tmp, _mm_mul_ps(a_wzwy, a_wzwy));
-    	tmp = _mm_xor_ps(tmp, _mm_set_ss(-0.));
-    	tmp = _mm_sub_ps(_mm_mul_ps(a_ywyz, a_ywyz), tmp);
-    	tmp = _mm_mul_ps(_mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */), tmp);
+        let mut tmp: __m128 = _mm_mul_ps(a_zyzw, a_zyzw);
+        tmp = _mm_add_ps(tmp, _mm_mul_ps(a_wzwy, a_wzwy));
+        tmp = _mm_xor_ps(tmp, _mm_set_ss(-0.));
+        tmp = _mm_sub_ps(_mm_mul_ps(a_ywyz, a_ywyz), tmp);
+        tmp = _mm_mul_ps(_mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */), tmp);
 
         let um = _mm_add_ps(*p1, tmp);
-    	*p1 = _mm_shuffle_ps(um,um, 120 /* 1, 3, 2, 0 */);
+        *p1 = _mm_shuffle_ps(um, um, 120 /* 1, 3, 2, 0 */);
 
-    	*p2 = _mm_mul_ps(a_zyzw, b_xzwy);
-    	*p2 = _mm_sub_ps(*p2, _mm_mul_ps(a_wzwy, b));
-    	*p2 = _mm_mul_ps(*p2, _mm_mul_ps(_mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */), two_zero));
-    	*p2 = _mm_shuffle_ps(*p2,*p2, 120 /* 1, 3, 2, 0 */);
+        *p2 = _mm_mul_ps(a_zyzw, b_xzwy);
+        *p2 = _mm_sub_ps(*p2, _mm_mul_ps(a_wzwy, b));
+        *p2 = _mm_mul_ps(
+            *p2,
+            _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */), two_zero),
+        );
+        *p2 = _mm_shuffle_ps(*p2, *p2, 120 /* 1, 3, 2, 0 */);
     }
 }
 
 #[inline]
-pub fn sw20(a:__m128 ,b: __m128) ->__m128		{
-			//                       -b0(a1^2 + a2^2 + a3^2) e0123 +
-			// (-2a3(a1 b1 + a2 b2) + b3(a1^2 + a2^2 - a3^2)) e03
-			// (-2a1(a2 b2 + a3 b3) + b1(a2^2 + a3^2 - a1^2)) e01 +
-			// (-2a2(a3 b3 + a1 b1) + b2(a3^2 + a1^2 - a2^2)) e02 +
+pub fn sw20(a: __m128, b: __m128) -> __m128 {
+    //                       -b0(a1^2 + a2^2 + a3^2) e0123 +
+    // (-2a3(a1 b1 + a2 b2) + b3(a1^2 + a2^2 - a3^2)) e03
+    // (-2a1(a2 b2 + a3 b3) + b1(a2^2 + a3^2 - a1^2)) e01 +
+    // (-2a2(a3 b3 + a1 b1) + b2(a3^2 + a1^2 - a2^2)) e02 +
 
     unsafe {
-		let a_zzwy :__m128 = _mm_shuffle_ps(a,a, 122 /* 1, 3, 2, 2 */);
-		let a_wwyz :__m128 = _mm_shuffle_ps(a,a, 159 /* 2, 1, 3, 3 */);
+        let a_zzwy: __m128 = _mm_shuffle_ps(a, a, 122 /* 1, 3, 2, 2 */);
+        let a_wwyz: __m128 = _mm_shuffle_ps(a, a, 159 /* 2, 1, 3, 3 */);
 
-		let mut p2 = _mm_mul_ps(a, b);
-		p2 = _mm_add_ps(p2, _mm_mul_ps(a_zzwy, _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */)));
-		p2 = _mm_mul_ps(
-			p2, _mm_mul_ps(a_wwyz, _mm_set_ps(-2., -2., -2., 0.)));
+        let mut p2 = _mm_mul_ps(a, b);
+        p2 = _mm_add_ps(
+            p2,
+            _mm_mul_ps(a_zzwy, _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */)),
+        );
+        p2 = _mm_mul_ps(p2, _mm_mul_ps(a_wwyz, _mm_set_ps(-2., -2., -2., 0.)));
 
-		let a_yyzw :__m128 = _mm_shuffle_ps(a,a, 229 /* 3, 2, 1, 1 */);
-		let mut tmp :__m128 = _mm_mul_ps(a_yyzw, a_yyzw);
-		tmp = _mm_xor_ps(
-			_mm_set_ss(-0.), _mm_add_ps(tmp, _mm_mul_ps(a_zzwy, a_zzwy)));
-		tmp = _mm_sub_ps(tmp, _mm_mul_ps(a_wwyz, a_wwyz));
-		p2 = _mm_add_ps(p2, _mm_mul_ps(tmp, _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */)));
-		p2 = _mm_shuffle_ps(p2,p2, 120 /* 1, 3, 2, 0 */);
+        let a_yyzw: __m128 = _mm_shuffle_ps(a, a, 229 /* 3, 2, 1, 1 */);
+        let mut tmp: __m128 = _mm_mul_ps(a_yyzw, a_yyzw);
+        tmp = _mm_xor_ps(_mm_set_ss(-0.), _mm_add_ps(tmp, _mm_mul_ps(a_zzwy, a_zzwy)));
+        tmp = _mm_sub_ps(tmp, _mm_mul_ps(a_wwyz, a_wwyz));
+        p2 = _mm_add_ps(
+            p2,
+            _mm_mul_ps(tmp, _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */)),
+        );
+        p2 = _mm_shuffle_ps(p2, p2, 120 /* 1, 3, 2, 0 */);
 
-		return p2
-	}
+        return p2;
+    }
 }
 
 #[inline]
@@ -173,38 +181,38 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 // b * a * ~b
 // The low component of p2 is expected to be the scalar component instead
 #[inline]
-pub fn sw02(a:__m128,b: __m128) -> __m128{
-	// (a0 b0^2 + 2a1 b0 b1 + 2a2 b0 b2 + 2a3 b0 b3) e0 +
-	// (a1 b0^2) e1 +
-	// (a2 b0^2) e2 +
-	// (a3 b0^2) e3
-	//
-	// Because the plane is projectively equivalent on multiplication by a
-	// scalar, we can divide the result through by b0^2
-	//
-	// (a0 + 2a1 b1 / b0 + 2a2 b2 / b0 + 2a3 b3 / b0) e0 +
-	// a1 e1 +
-	// a2 e2 +
-	// a3 e3
-	//
-	// The additive term clearly contains a dot product between the plane's
-	// normal and the translation axis, demonstrating that the plane
-	// "doesn't care" about translations along its span. More precisely, the
-	// plane translates by the projection of the translator on the plane's
-	// normal.
+pub fn sw02(a: __m128, b: __m128) -> __m128 {
+    // (a0 b0^2 + 2a1 b0 b1 + 2a2 b0 b2 + 2a3 b0 b3) e0 +
+    // (a1 b0^2) e1 +
+    // (a2 b0^2) e2 +
+    // (a3 b0^2) e3
+    //
+    // Because the plane is projectively equivalent on multiplication by a
+    // scalar, we can divide the result through by b0^2
+    //
+    // (a0 + 2a1 b1 / b0 + 2a2 b2 / b0 + 2a3 b3 / b0) e0 +
+    // a1 e1 +
+    // a2 e2 +
+    // a3 e3
+    //
+    // The additive term clearly contains a dot product between the plane's
+    // normal and the translation axis, demonstrating that the plane
+    // "doesn't care" about translations along its span. More precisely, the
+    // plane translates by the projection of the translator on the plane's
+    // normal.
 
-	// a1*b1 + a2*b2 + a3*b3 stored in the low component of tmp
-	let mut tmp:__m128 = hi_dp(a, b);
+    // a1*b1 + a2*b2 + a3*b3 stored in the low component of tmp
+    let mut tmp: __m128 = hi_dp(a, b);
 
-	let mut inv_b :__m128= rcp_nr1(b);
+    let mut inv_b: __m128 = rcp_nr1(b);
     unsafe {
-    	// 2 / b0
-    	inv_b = _mm_add_ss(inv_b, inv_b);
-    	inv_b = _mm_and_ps(inv_b, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
-    	tmp = _mm_mul_ss(tmp, inv_b);
+        // 2 / b0
+        inv_b = _mm_add_ss(inv_b, inv_b);
+        inv_b = _mm_and_ps(inv_b, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
+        tmp = _mm_mul_ss(tmp, inv_b);
 
-    	// Add to the plane
-    	return _mm_add_ps(a, tmp)
+        // Add to the plane
+        return _mm_add_ps(a, tmp);
     }
 }
 
@@ -213,32 +221,43 @@ pub fn sw02(a:__m128,b: __m128) -> __m128{
 // d := p2 input
 // c := p2 translator
 #[inline]
-pub fn swL2(a:__m128 ,d: __m128 ,c: __m128 ) -> __m128{
-	// a0 +
-	// a1 e23 +
-	// a2 e31 +
-	// a3 e12 +
-	//
-	// (2a0 c0 + d0) e0123 +
-	// (2(a2 c3 - a3 c2 - a1 c0) + d1) e01 +
-	// (2(a3 c1 - a1 c3 - a2 c0) + d2) e02 +
-	// (2(a1 c2 - a2 c1 - a3 c0) + d3) e03
+pub fn swL2(a: __m128, d: __m128, c: __m128) -> __m128 {
+    // a0 +
+    // a1 e23 +
+    // a2 e31 +
+    // a3 e12 +
+    //
+    // (2a0 c0 + d0) e0123 +
+    // (2(a2 c3 - a3 c2 - a1 c0) + d1) e01 +
+    // (2(a3 c1 - a1 c3 - a2 c0) + d2) e02 +
+    // (2(a1 c2 - a2 c1 - a3 c0) + d3) e03
 
     unsafe {
-    	let mut p2_out = _mm_mul_ps(_mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */), _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */));
+        let mut p2_out = _mm_mul_ps(
+            _mm_shuffle_ps(a, a, 120 /* 1, 3, 2, 0 */),
+            _mm_shuffle_ps(c, c, 156 /* 2, 1, 3, 0 */),
+        );
 
-    	// Add and subtract the same quantity in the low component to produce a
-    	// cancellation
-    	p2_out = _mm_sub_ps(
-    		p2_out,
-    		_mm_mul_ps(_mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */), _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
-    	p2_out = _mm_sub_ps(p2_out,
-    		_mm_xor_ps(_mm_mul_ps(a, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)),
-    			_mm_set_ss(-0.)));
-    	p2_out = _mm_add_ps(p2_out, p2_out);
-    	p2_out = _mm_add_ps(p2_out, d);
+        // Add and subtract the same quantity in the low component to produce a
+        // cancellation
+        p2_out = _mm_sub_ps(
+            p2_out,
+            _mm_mul_ps(
+                _mm_shuffle_ps(a, a, 156 /* 2, 1, 3, 0 */),
+                _mm_shuffle_ps(c, c, 120 /* 1, 3, 2, 0 */),
+            ),
+        );
+        p2_out = _mm_sub_ps(
+            p2_out,
+            _mm_xor_ps(
+                _mm_mul_ps(a, _mm_shuffle_ps(c, c, 0 /* 0, 0, 0, 0 */)),
+                _mm_set_ss(-0.),
+            ),
+        );
+        p2_out = _mm_add_ps(p2_out, p2_out);
+        p2_out = _mm_add_ps(p2_out, d);
 
-    	return p2_out
+        return p2_out;
     }
 }
 
@@ -248,17 +267,17 @@ pub fn swL2(a:__m128 ,d: __m128 ,c: __m128 ) -> __m128{
 // p3: (e123, e032, e013, e021)
 // b * a * ~b
 #[inline]
-pub fn sw32(a:__m128, b:__m128) -> __m128{
-	// a0 e123 +
-	// (a1 - 2 a0 b1) e032 +
-	// (a2 - 2 a0 b2) e013 +
-	// (a3 - 2 a0 b3) e021
-       
-    unsafe{
-    	let mut tmp:__m128 = _mm_mul_ps(_mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */), b);
-    	tmp = _mm_mul_ps(_mm_set_ps(-2., -2., -2., 0.), tmp);
-    	tmp = _mm_add_ps(a, tmp);
-    	return tmp
+pub fn sw32(a: __m128, b: __m128) -> __m128 {
+    // a0 e123 +
+    // (a1 - 2 a0 b1) e032 +
+    // (a2 - 2 a0 b2) e013 +
+    // (a3 - 2 a0 b3) e021
+
+    unsafe {
+        let mut tmp: __m128 = _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */), b);
+        tmp = _mm_mul_ps(_mm_set_ps(-2., -2., -2., 0.), tmp);
+        tmp = _mm_add_ps(a, tmp);
+        return tmp;
     }
 }
 
@@ -269,117 +288,127 @@ pub fn sw32(a:__m128, b:__m128) -> __m128{
 //
 // Note: inp and out are permitted to alias iff a == out.
 #[inline]
-pub fn swMMRotation(b:__m128) ->(__m128,__m128,__m128){
-	// p1 block
-	// a0(b0^2 + b1^2 + b2^2 + b3^2) +
-	// (a1(b1^2 + b0^2 - b3^2 - b2^2) +
-	//     2a2(b0 b3 + b1 b2) + 2a3(b1 b3 - b0 b2)) e23 +
-	// (a2(b2^2 + b0^2 - b1^2 - b3^2) +
-	//     2a3(b0 b1 + b2 b3) + 2a1(b2 b1 - b0 b3)) e31
-	// (a3(b3^2 + b0^2 - b2^2 - b1^2) +
-	//     2a1(b0 b2 + b3 b1) + 2a2(b3 b2 - b0 b1)) e12 +
-       
+pub fn swMMRotation(b: __m128) -> (__m128, __m128, __m128) {
+    // p1 block
+    // a0(b0^2 + b1^2 + b2^2 + b3^2) +
+    // (a1(b1^2 + b0^2 - b3^2 - b2^2) +
+    //     2a2(b0 b3 + b1 b2) + 2a3(b1 b3 - b0 b2)) e23 +
+    // (a2(b2^2 + b0^2 - b1^2 - b3^2) +
+    //     2a3(b0 b1 + b2 b3) + 2a1(b2 b1 - b0 b3)) e31
+    // (a3(b3^2 + b0^2 - b2^2 - b1^2) +
+    //     2a1(b0 b2 + b3 b1) + 2a2(b3 b2 - b0 b1)) e12 +
+
     unsafe {
-    	let b_xwyz :__m128 = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
-    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
-    	let b_yxxx :__m128 = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
-    	let b_yxxx_2 :__m128 = _mm_mul_ps(b_yxxx, b_yxxx);
-           
-    	let mut tmp1 = _mm_mul_ps(b, b);
-    	tmp1 = _mm_add_ps(tmp1, b_yxxx_2);
-    	let mut b_tmp = _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */);
-    	let mut tmp2 = _mm_mul_ps(b_tmp, b_tmp);
-    	b_tmp = _mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */);
-    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_tmp, b_tmp));
-    	tmp1 = _mm_sub_ps(tmp1, _mm_xor_ps(tmp2, _mm_set_ss(-0.)));
-    	// tmp needs to be scaled by a and set to p1_out
-           
-    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
-    	let scale = _mm_set_ps(2., 2., 2., 0.);
-    	tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
-    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b, b_xzwy));
-    	tmp2 = _mm_mul_ps(tmp2, scale);
-    	// tmp2 needs to be scaled by (a0, a2, a3, a1) and added to p1_out
-           
-    	let mut tmp3 = _mm_mul_ps(b, b_xwyz);
-    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xxxx, b_xzwy));
-    	tmp3 = _mm_mul_ps(tmp3, scale);
-    	// tmp3 needs to be scaled by (a0, a3, a1, a2) and added to p1_out
-           
-    	// p2 block
-    	// (d coefficients are the components of the input line p2)
-    	// (2a0(b0 c0 - b1 c1 - b2 c2 - b3 c3) +
-    	//  d0(b1^2 + b0^2 + b2^2 + b3^2)) e0123 +
-    	//
-    	// (2a1(b1 c1 - b0 c0 - b3 c3 - b2 c2) +
-    	//  2a3(b1 c3 + b2 c0 + b3 c1 - b0 c2) +
-    	//  2a2(b1 c2 + b0 c3 + b2 c1 - b3 c0) +
-    	//  2d2(b0 b3 + b2 b1) +
-    	//  2d3(b1 b3 - b0 b2) +
-    	//  d1(b0^2 + b1^2 - b3^2 - b2^2)) e01 +
-    	//
-    	// (2a2(b2 c2 - b0 c0 - b3 c3 - b1 c1) +
-    	//  2a1(b2 c1 + b3 c0 + b1 c2 - b0 c3) +
-    	//  2a3(b2 c3 + b0 c1 + b3 c2 - b1 c0) +
-    	//  2d3(b0 b1 + b3 b2) +
-    	//  2d1(b2 b1 - b0 b3) +
-    	//  d2(b0^2 + b2^2 - b1^2 - b3^2)) e02 +
-    	//
-    	// (2a3(b3 c3 - b0 c0 - b1 c1 - b2 c2) +
-    	//  2a2(b3 c2 + b1 c0 + b2 c3 - b0 c1) +
-    	//  2a1(b3 c1 + b0 c2 + b1 c3 - b2 c0) +
-    	//  2d1(b0 b2 + b1 b3) +
-    	//  2d2(b3 b2 - b0 b1) +
-    	//  d3(b0^2 + b3^2 - b2^2 - b1^2)) e03
-           
-    	// Rotation
-           
-    	// tmp scaled by d and added to p2
-    	// tmp2 scaled by (d0, d2, d3, d1) and added to p2
-    	// tmp3 scaled by (d0, d3, d1, d2) and added to p2
-           
-    	return (tmp1, tmp2, tmp3)
+        let b_xwyz: __m128 = _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */);
+        let b_xzwy: __m128 = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
+        let b_yxxx: __m128 = _mm_shuffle_ps(b, b, 1 /* 0, 0, 0, 1 */);
+        let b_yxxx_2: __m128 = _mm_mul_ps(b_yxxx, b_yxxx);
+
+        let mut tmp1 = _mm_mul_ps(b, b);
+        tmp1 = _mm_add_ps(tmp1, b_yxxx_2);
+        let mut b_tmp = _mm_shuffle_ps(b, b, 158 /* 2, 1, 3, 2 */);
+        let mut tmp2 = _mm_mul_ps(b_tmp, b_tmp);
+        b_tmp = _mm_shuffle_ps(b, b, 123 /* 1, 3, 2, 3 */);
+        tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_tmp, b_tmp));
+        tmp1 = _mm_sub_ps(tmp1, _mm_xor_ps(tmp2, _mm_set_ss(-0.)));
+        // tmp needs to be scaled by a and set to p1_out
+
+        let b_xxxx = _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */);
+        let scale = _mm_set_ps(2., 2., 2., 0.);
+        tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
+        tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b, b_xzwy));
+        tmp2 = _mm_mul_ps(tmp2, scale);
+        // tmp2 needs to be scaled by (a0, a2, a3, a1) and added to p1_out
+
+        let mut tmp3 = _mm_mul_ps(b, b_xwyz);
+        tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xxxx, b_xzwy));
+        tmp3 = _mm_mul_ps(tmp3, scale);
+        // tmp3 needs to be scaled by (a0, a3, a1, a2) and added to p1_out
+
+        // p2 block
+        // (d coefficients are the components of the input line p2)
+        // (2a0(b0 c0 - b1 c1 - b2 c2 - b3 c3) +
+        //  d0(b1^2 + b0^2 + b2^2 + b3^2)) e0123 +
+        //
+        // (2a1(b1 c1 - b0 c0 - b3 c3 - b2 c2) +
+        //  2a3(b1 c3 + b2 c0 + b3 c1 - b0 c2) +
+        //  2a2(b1 c2 + b0 c3 + b2 c1 - b3 c0) +
+        //  2d2(b0 b3 + b2 b1) +
+        //  2d3(b1 b3 - b0 b2) +
+        //  d1(b0^2 + b1^2 - b3^2 - b2^2)) e01 +
+        //
+        // (2a2(b2 c2 - b0 c0 - b3 c3 - b1 c1) +
+        //  2a1(b2 c1 + b3 c0 + b1 c2 - b0 c3) +
+        //  2a3(b2 c3 + b0 c1 + b3 c2 - b1 c0) +
+        //  2d3(b0 b1 + b3 b2) +
+        //  2d1(b2 b1 - b0 b3) +
+        //  d2(b0^2 + b2^2 - b1^2 - b3^2)) e02 +
+        //
+        // (2a3(b3 c3 - b0 c0 - b1 c1 - b2 c2) +
+        //  2a2(b3 c2 + b1 c0 + b2 c3 - b0 c1) +
+        //  2a1(b3 c1 + b0 c2 + b1 c3 - b2 c0) +
+        //  2d1(b0 b2 + b1 b3) +
+        //  2d2(b3 b2 - b0 b1) +
+        //  d3(b0^2 + b3^2 - b2^2 - b1^2)) e03
+
+        // Rotation
+
+        // tmp scaled by d and added to p2
+        // tmp2 scaled by (d0, d2, d3, d1) and added to p2
+        // tmp3 scaled by (d0, d3, d1, d2) and added to p2
+
+        return (tmp1, tmp2, tmp3);
     }
 }
 
 #[inline]
 pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
-    unsafe{
-    	let b_xwyz = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
-    	let b_xzwy = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
-    	let b_yxxx = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
-    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
-    	let scale = _mm_set_ps(2., 2., 2., 0.);
+    unsafe {
+        let b_xwyz = _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */);
+        let b_xzwy = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
+        let b_yxxx = _mm_shuffle_ps(b, b, 1 /* 0, 0, 0, 1 */);
+        let b_xxxx = _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */);
+        let scale = _mm_set_ps(2., 2., 2., 0.);
 
-    	// Translation
-    	let czero = _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */);
-    	let c_xzwy = _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */);
-    	let c_xwyz = _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */);
+        // Translation
+        let czero = _mm_shuffle_ps(c, c, 0 /* 0, 0, 0, 0 */);
+        let c_xzwy = _mm_shuffle_ps(c, c, 120 /* 1, 3, 2, 0 */);
+        let c_xwyz = _mm_shuffle_ps(c, c, 156 /* 2, 1, 3, 0 */);
 
-    	let mut tmp4 = _mm_mul_ps(b, c);
-    	tmp4 = _mm_sub_ps(
-    		tmp4, _mm_mul_ps(b_yxxx, _mm_shuffle_ps(c,c, 1 /* 0, 0, 0, 1 */)));
-    	tmp4 = _mm_sub_ps(tmp4,
-    		_mm_mul_ps(_mm_shuffle_ps(b,b, 126 /* 1, 3, 3, 2 */),
-    			_mm_shuffle_ps(c,c, 126 /* 1, 3, 3, 2 */)));
-    	tmp4 = _mm_sub_ps(tmp4,
-    		_mm_mul_ps(_mm_shuffle_ps(b,b, 155 /* 2, 1, 2, 3 */),
-    			_mm_shuffle_ps(c,c, 155 /* 2, 1, 2, 3 */)));
-    	tmp4 = _mm_add_ps(tmp4, tmp4);
+        let mut tmp4 = _mm_mul_ps(b, c);
+        tmp4 = _mm_sub_ps(
+            tmp4,
+            _mm_mul_ps(b_yxxx, _mm_shuffle_ps(c, c, 1 /* 0, 0, 0, 1 */)),
+        );
+        tmp4 = _mm_sub_ps(
+            tmp4,
+            _mm_mul_ps(
+                _mm_shuffle_ps(b, b, 126 /* 1, 3, 3, 2 */),
+                _mm_shuffle_ps(c, c, 126 /* 1, 3, 3, 2 */),
+            ),
+        );
+        tmp4 = _mm_sub_ps(
+            tmp4,
+            _mm_mul_ps(
+                _mm_shuffle_ps(b, b, 155 /* 2, 1, 2, 3 */),
+                _mm_shuffle_ps(c, c, 155 /* 2, 1, 2, 3 */),
+            ),
+        );
+        tmp4 = _mm_add_ps(tmp4, tmp4);
 
-    	let mut tmp5 = _mm_mul_ps(b, c_xwyz);
-    	tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xzwy, czero));
-    	tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xwyz, c));
-    	tmp5 = _mm_sub_ps(tmp5, _mm_mul_ps(b_xxxx, c_xzwy));
-    	tmp5 = _mm_mul_ps(tmp5, scale);
+        let mut tmp5 = _mm_mul_ps(b, c_xwyz);
+        tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xzwy, czero));
+        tmp5 = _mm_add_ps(tmp5, _mm_mul_ps(b_xwyz, c));
+        tmp5 = _mm_sub_ps(tmp5, _mm_mul_ps(b_xxxx, c_xzwy));
+        tmp5 = _mm_mul_ps(tmp5, scale);
 
-    	let mut tmp6 = _mm_mul_ps(b, c_xzwy);
-    	tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xxxx, c_xwyz));
-    	tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xzwy, c));
-    	tmp6 = _mm_sub_ps(tmp6, _mm_mul_ps(b_xwyz, czero));
-    	tmp6 = _mm_mul_ps(tmp6, scale);
+        let mut tmp6 = _mm_mul_ps(b, c_xzwy);
+        tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xxxx, c_xwyz));
+        tmp6 = _mm_add_ps(tmp6, _mm_mul_ps(b_xzwy, c));
+        tmp6 = _mm_sub_ps(tmp6, _mm_mul_ps(b_xwyz, czero));
+        tmp6 = _mm_mul_ps(tmp6, scale);
 
-    	return (tmp4, tmp5, tmp6);
+        return (tmp4, tmp5, tmp6);
     }
 }
 
@@ -430,52 +459,60 @@ pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
 // 		}
 
 #[inline]
-pub fn swMM_four(inp1 :__m128, inp2 :__m128, b :__m128, c :__m128) -> (__m128, __m128){
-    unsafe{
-    	let (tmp1, tmp2, tmp3) = swMMRotation(b);
-    	let (tmp4, tmp5, tmp6) = swMMTranslation(b, c);
+pub fn swMM_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, __m128) {
+    unsafe {
+        let (tmp1, tmp2, tmp3) = swMMRotation(b);
+        let (tmp4, tmp5, tmp6) = swMMTranslation(b, c);
 
-    	let p1_in_xzwy = _mm_shuffle_ps(inp1,inp1, 120 /* 1, 3, 2, 0 */);
-    	let p1_in_xwyz = _mm_shuffle_ps(inp1,inp1, 156 /* 2, 1, 3, 0 */);
+        let p1_in_xzwy = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
+        let p1_in_xwyz = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
 
-    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+        let mut p1_out = _mm_mul_ps(tmp1, inp1);
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
 
-    	let mut p2_out = _mm_mul_ps(tmp1, inp2);
-    	p2_out = _mm_add_ps(
-    		p2_out, _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2,inp2, 120 /* 1, 3, 2, 0 */)));
-    	p2_out = _mm_add_ps(
-    		p2_out, _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2,inp2, 156 /* 2, 1, 3, 0 */)));
+        let mut p2_out = _mm_mul_ps(tmp1, inp2);
+        p2_out = _mm_add_ps(
+            p2_out,
+            _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2, inp2, 120 /* 1, 3, 2, 0 */)),
+        );
+        p2_out = _mm_add_ps(
+            p2_out,
+            _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2, inp2, 156 /* 2, 1, 3, 0 */)),
+        );
 
-    	// translate
-    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, inp1));
-    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
-    	p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
+        // translate
+        p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, inp1));
+        p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
+        p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
 
-    	return (p1_out, p2_out);
+        return (p1_out, p2_out);
     }
 }
 
 #[inline]
-pub fn swMM_three(inp1:__m128 ,inp2: __m128 ,b: __m128) ->(__m128, __m128){
+pub fn swMM_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
     unsafe {
-    	let (tmp1, tmp2, tmp3) = swMMRotation(b);
-           
-    	let p1_in_xzwy:__m128 = _mm_shuffle_ps(inp1,inp1, 120 /* 1, 3, 2, 0 */);
-    	let p1_in_xwyz:__m128 = _mm_shuffle_ps(inp1,inp1, 156 /* 2, 1, 3, 0 */);
-           
-    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
-           
-    	let mut p2_out = _mm_mul_ps(tmp1, inp2);
-    	p2_out = _mm_add_ps(
-    		p2_out, _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2,inp2, 120 /* 1, 3, 2, 0 */)));
-    	p2_out = _mm_add_ps(
-    		p2_out, _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2,inp2, 156 /* 2, 1, 3, 0 */)));
-           
-    	return (p1_out, p2_out)
+        let (tmp1, tmp2, tmp3) = swMMRotation(b);
+
+        let p1_in_xzwy: __m128 = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
+        let p1_in_xwyz: __m128 = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
+
+        let mut p1_out = _mm_mul_ps(tmp1, inp1);
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+
+        let mut p2_out = _mm_mul_ps(tmp1, inp2);
+        p2_out = _mm_add_ps(
+            p2_out,
+            _mm_mul_ps(tmp2, _mm_shuffle_ps(inp2, inp2, 120 /* 1, 3, 2, 0 */)),
+        );
+        p2_out = _mm_add_ps(
+            p2_out,
+            _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2, inp2, 156 /* 2, 1, 3, 0 */)),
+        );
+
+        return (p1_out, p2_out);
     }
 }
 
@@ -501,88 +538,106 @@ pub fn swMM_three(inp1:__m128 ,inp2: __m128 ,b: __m128) ->(__m128, __m128){
 // If Variadic is true, a and out must point to a contiguous block of memory
 // equivalent to __m128[count]
 #[inline]
-pub fn sw012Common(translate:bool, b:__m128 , c:__m128 ) -> (__m128, __m128, __m128, __m128) {
-	// LSB
-	//
-	// (2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1) +
-	//  2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
-	//  2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
-	//  a0 (b2^2 + b1^2 + b0^2 + b3^2)) e0 +
-	//
-	// (2a2(b0 b3 + b2 b1) +
-	//  2a3(b1 b3 - b0 b2) +
-	//  a1 (b0^2 + b1^2 - b3^2 - b2^2)) e1 +
-	//
-	// (2a3(b0 b1 + b3 b2) +
-	//  2a1(b2 b1 - b0 b3) +
-	//  a2 (b0^2 + b2^2 - b1^2 - b3^2)) e2 +
-	//
-	// (2a1(b0 b2 + b1 b3) +
-	//  2a2(b3 b2 - b0 b1) +
-	//  a3 (b0^2 + b3^2 - b2^2 - b1^2)) e3
-	//
-	// MSB
-	//
-	// Note the similarity between the results here and the rotor and
-	// translator applied to the plane. The e1, e2, and e3 components do not
-	// participate in the translation and are identical to the result after
-	// the rotor was applied to the plane. The e0 component is displaced
-	// similarly to the manner in which it is displaced after application of
-	// a translator.
-    
-    unsafe {   
-    	// Double-cover scale
-    	let dc_scale :__m128 = _mm_set_ps(2., 2., 2., 1.);
-    	let b_xwyz :__m128 = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
-    	let b_xzwy :__m128 = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
-    	let b_xxxx :__m128 = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
-           
-    	let mut tmp1:__m128
-    		= _mm_mul_ps(_mm_shuffle_ps(b,b, 2 /* 0, 0, 0, 2 */), _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */));
-    	tmp1 = _mm_add_ps(
-    		tmp1,
-    		_mm_mul_ps(_mm_shuffle_ps(b,b, 121 /* 1, 3, 2, 1 */), _mm_shuffle_ps(b,b, 229 /* 3, 2, 1, 1 */)));
-    	// Scale later with (a0, a2, a3, a1)
-    	tmp1 = _mm_mul_ps(tmp1, dc_scale);
-           
-    	let mut tmp2:__m128 = _mm_mul_ps(b, b_xwyz);
-           
-    	tmp2 = _mm_sub_ps(tmp2,
-    		_mm_xor_ps(_mm_set_ss(-0.),
-    			_mm_mul_ps(_mm_shuffle_ps(b,b, 3 /* 0, 0, 0, 3 */),
-    				_mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */))));
-    	// Scale later with (a0, a3, a1, a2)
-    	tmp2 = _mm_mul_ps(tmp2, dc_scale);
-           
-    	// Alternately add and subtract to improve low component stability
-    	let mut tmp3:__m128 = _mm_mul_ps(b, b);
-    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xwyz, b_xwyz));
-    	tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_xxxx, b_xxxx));
-    	tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xzwy, b_xzwy));
-    	// Scale later with a
-           
-    	// Compute
-    	// 0 * _ +
-    	// 2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
-    	// 2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
-    	// 2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1)
-    	// by decomposing into four vectors, factoring out the a components
-           
-    	let mut tmp4 = _mm_setzero_ps();
-    	if translate
-    	{
-    		tmp4 = _mm_mul_ps(b_xxxx, c);
-    		tmp4 = _mm_add_ps(
-    			tmp4, _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */)));
-    		tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)));
-           
-    		// NOTE: The high component of tmp4 is meaningless here
-    		tmp4 = _mm_sub_ps(
-    			tmp4, _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
-    		tmp4 = _mm_mul_ps(tmp4, dc_scale);
-    	}
-           
-    	return (tmp1, tmp2, tmp3, tmp4)
+pub fn sw012Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
+    // LSB
+    //
+    // (2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1) +
+    //  2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
+    //  2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
+    //  a0 (b2^2 + b1^2 + b0^2 + b3^2)) e0 +
+    //
+    // (2a2(b0 b3 + b2 b1) +
+    //  2a3(b1 b3 - b0 b2) +
+    //  a1 (b0^2 + b1^2 - b3^2 - b2^2)) e1 +
+    //
+    // (2a3(b0 b1 + b3 b2) +
+    //  2a1(b2 b1 - b0 b3) +
+    //  a2 (b0^2 + b2^2 - b1^2 - b3^2)) e2 +
+    //
+    // (2a1(b0 b2 + b1 b3) +
+    //  2a2(b3 b2 - b0 b1) +
+    //  a3 (b0^2 + b3^2 - b2^2 - b1^2)) e3
+    //
+    // MSB
+    //
+    // Note the similarity between the results here and the rotor and
+    // translator applied to the plane. The e1, e2, and e3 components do not
+    // participate in the translation and are identical to the result after
+    // the rotor was applied to the plane. The e0 component is displaced
+    // similarly to the manner in which it is displaced after application of
+    // a translator.
+
+    unsafe {
+        // Double-cover scale
+        let dc_scale: __m128 = _mm_set_ps(2., 2., 2., 1.);
+        let b_xwyz: __m128 = _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */);
+        let b_xzwy: __m128 = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
+        let b_xxxx: __m128 = _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */);
+
+        let mut tmp1: __m128 = _mm_mul_ps(
+            _mm_shuffle_ps(b, b, 2 /* 0, 0, 0, 2 */),
+            _mm_shuffle_ps(b, b, 158 /* 2, 1, 3, 2 */),
+        );
+        tmp1 = _mm_add_ps(
+            tmp1,
+            _mm_mul_ps(
+                _mm_shuffle_ps(b, b, 121 /* 1, 3, 2, 1 */),
+                _mm_shuffle_ps(b, b, 229 /* 3, 2, 1, 1 */),
+            ),
+        );
+        // Scale later with (a0, a2, a3, a1)
+        tmp1 = _mm_mul_ps(tmp1, dc_scale);
+
+        let mut tmp2: __m128 = _mm_mul_ps(b, b_xwyz);
+
+        tmp2 = _mm_sub_ps(
+            tmp2,
+            _mm_xor_ps(
+                _mm_set_ss(-0.),
+                _mm_mul_ps(
+                    _mm_shuffle_ps(b, b, 3 /* 0, 0, 0, 3 */),
+                    _mm_shuffle_ps(b, b, 123 /* 1, 3, 2, 3 */),
+                ),
+            ),
+        );
+        // Scale later with (a0, a3, a1, a2)
+        tmp2 = _mm_mul_ps(tmp2, dc_scale);
+
+        // Alternately add and subtract to improve low component stability
+        let mut tmp3: __m128 = _mm_mul_ps(b, b);
+        tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xwyz, b_xwyz));
+        tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_xxxx, b_xxxx));
+        tmp3 = _mm_sub_ps(tmp3, _mm_mul_ps(b_xzwy, b_xzwy));
+        // Scale later with a
+
+        // Compute
+        // 0 * _ +
+        // 2a1(b0 c1 + b2 c3 + b1 c0 - b3 c2) +
+        // 2a2(b0 c2 + b3 c1 + b2 c0 - b1 c3) +
+        // 2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1)
+        // by decomposing into four vectors, factoring out the a components
+
+        let mut tmp4 = _mm_setzero_ps();
+        if translate {
+            tmp4 = _mm_mul_ps(b_xxxx, c);
+            tmp4 = _mm_add_ps(
+                tmp4,
+                _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c, c, 156 /* 2, 1, 3, 0 */)),
+            );
+            tmp4 = _mm_add_ps(
+                tmp4,
+                _mm_mul_ps(b, _mm_shuffle_ps(c, c, 0 /* 0, 0, 0, 0 */)),
+            );
+
+            // NOTE: The high component of tmp4 is meaningless here
+            tmp4 = _mm_sub_ps(
+                tmp4,
+                _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c, c, 120 /* 1, 3, 2, 0 */)),
+            );
+            tmp4 = _mm_mul_ps(tmp4, dc_scale);
+        }
+
+        return (tmp1, tmp2, tmp3, tmp4);
     }
 }
 
@@ -610,92 +665,99 @@ pub fn sw012Common(translate:bool, b:__m128 , c:__m128 ) -> (__m128, __m128, __m
 // 		}
 
 #[inline]
-pub fn sw012(translate:bool, a:__m128 , b:__m128 , c:__m128 ) ->__m128{
-	let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
-       
+pub fn sw012(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
+    let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
+
     unsafe {
-    	// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a dependence on b and c.
-    	// Compute the lower block for components e1, e2, and e3
-    	let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */));
-    	p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */)));
-    	p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
-           
-    	if translate
-    	{
-    		let tmp5 = hi_dp(tmp4, a);
-    		p = _mm_add_ps(p, tmp5);
-    	}
-           
-    	return p
+        // The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a dependence on b and c.
+        // Compute the lower block for components e1, e2, and e3
+        let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a, a, 120 /* 1, 3, 2, 0 */));
+        p = _mm_add_ps(
+            p,
+            _mm_mul_ps(tmp2, _mm_shuffle_ps(a, a, 156 /* 2, 1, 3, 0 */)),
+        );
+        p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
+
+        if translate {
+            let tmp5 = hi_dp(tmp4, a);
+            p = _mm_add_ps(p, tmp5);
+        }
+
+        return p;
     }
 }
 
 // Apply a motor to a point
 #[inline]
-pub fn sw312Common(translate:bool, b:__m128, c:__m128) ->(__m128, __m128, __m128, __m128){
-	// LSB
-	// a0(b1^2 + b0^2 + b2^2 + b3^2) e123 +
-	//
-	// (2a0(b2 c3 - b0 c1 - b3 c2 - b1 c0) +
-	//  2a3(b1 b3 - b0 b2) +
-	//  2a2(b0 b3 +  b2 b1) +
-	//  a1(b0^2 + b1^2 - b3^2 - b2^2)) e032
-	//
-	// (2a0(b3 c1 - b0 c2 - b1 c3 - b2 c0) +
-	//  2a1(b2 b1 - b0 b3) +
-	//  2a3(b0 b1 + b3 b2) +
-	//  a2(b0^2 + b2^2 - b1^2 - b3^2)) e013 +
-	//
-	// (2a0(b1 c2 - b0 c3 - b2 c1 - b3 c0) +
-	//  2a2(b3 b2 - b0 b1) +
-	//  2a1(b0 b2 + b1 b3) +
-	//  a3(b0^2 + b3^2 - b2^2 - b1^2)) e021 +
-	// MSB
-	//
-	// Sanity check: For c1 = c2 = c3 = 0, the computation becomes
-	// indistinguishable from a rotor application and the homogeneous
-	// coordinate a0 does not participate. As an additional sanity check,
-	// note that for a normalized rotor and homogenous point, the e123
-	// component will remain unity.
-    unsafe{
-    	let two = _mm_set_ps(2., 2., 2., 0.);
-    	let b_xxxx = _mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */);
-    	let b_xwyz = _mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */);
-    	let b_xzwy = _mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */);
+pub fn sw312Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
+    // LSB
+    // a0(b1^2 + b0^2 + b2^2 + b3^2) e123 +
+    //
+    // (2a0(b2 c3 - b0 c1 - b3 c2 - b1 c0) +
+    //  2a3(b1 b3 - b0 b2) +
+    //  2a2(b0 b3 +  b2 b1) +
+    //  a1(b0^2 + b1^2 - b3^2 - b2^2)) e032
+    //
+    // (2a0(b3 c1 - b0 c2 - b1 c3 - b2 c0) +
+    //  2a1(b2 b1 - b0 b3) +
+    //  2a3(b0 b1 + b3 b2) +
+    //  a2(b0^2 + b2^2 - b1^2 - b3^2)) e013 +
+    //
+    // (2a0(b1 c2 - b0 c3 - b2 c1 - b3 c0) +
+    //  2a2(b3 b2 - b0 b1) +
+    //  2a1(b0 b2 + b1 b3) +
+    //  a3(b0^2 + b3^2 - b2^2 - b1^2)) e021 +
+    // MSB
+    //
+    // Sanity check: For c1 = c2 = c3 = 0, the computation becomes
+    // indistinguishable from a rotor application and the homogeneous
+    // coordinate a0 does not participate. As an additional sanity check,
+    // note that for a normalized rotor and homogenous point, the e123
+    // component will remain unity.
+    unsafe {
+        let two = _mm_set_ps(2., 2., 2., 0.);
+        let b_xxxx = _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */);
+        let b_xwyz = _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */);
+        let b_xzwy = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
 
-    	let mut tmp1 = _mm_mul_ps(b, b_xwyz);
-    	tmp1 = _mm_sub_ps(tmp1, _mm_mul_ps(b_xxxx, b_xzwy));
-    	tmp1 = _mm_mul_ps(tmp1, two);
-    	// tmp1 needs to be scaled by (_, a3, a1, a2)
+        let mut tmp1 = _mm_mul_ps(b, b_xwyz);
+        tmp1 = _mm_sub_ps(tmp1, _mm_mul_ps(b_xxxx, b_xzwy));
+        tmp1 = _mm_mul_ps(tmp1, two);
+        // tmp1 needs to be scaled by (_, a3, a1, a2)
 
-    	let mut tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
-    	tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_xzwy, b));
-    	tmp2 = _mm_mul_ps(tmp2, two);
-    	// tmp2 needs to be scaled by (_, a2, a3, a1)
+        let mut tmp2 = _mm_mul_ps(b_xxxx, b_xwyz);
+        tmp2 = _mm_add_ps(tmp2, _mm_mul_ps(b_xzwy, b));
+        tmp2 = _mm_mul_ps(tmp2, two);
+        // tmp2 needs to be scaled by (_, a2, a3, a1)
 
-    	let mut tmp3 = _mm_mul_ps(b, b);
-    	let mut b_tmp = _mm_shuffle_ps(b,b, 1 /* 0, 0, 0, 1 */);
-    	tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_tmp, b_tmp));
-    	b_tmp = _mm_shuffle_ps(b,b, 158 /* 2, 1, 3, 2 */);
-    	let mut tmp4 = _mm_mul_ps(b_tmp, b_tmp);
-    	b_tmp = _mm_shuffle_ps(b,b, 123 /* 1, 3, 2, 3 */);
-    	tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b_tmp, b_tmp));
-    	tmp3 = _mm_sub_ps(tmp3, _mm_xor_ps(tmp4, _mm_set_ss(-0.)));
-    	// tmp3 needs to be scaled by (a0, a1, a2, a3)
+        let mut tmp3 = _mm_mul_ps(b, b);
+        let mut b_tmp = _mm_shuffle_ps(b, b, 1 /* 0, 0, 0, 1 */);
+        tmp3 = _mm_add_ps(tmp3, _mm_mul_ps(b_tmp, b_tmp));
+        b_tmp = _mm_shuffle_ps(b, b, 158 /* 2, 1, 3, 2 */);
+        let mut tmp4 = _mm_mul_ps(b_tmp, b_tmp);
+        b_tmp = _mm_shuffle_ps(b, b, 123 /* 1, 3, 2, 3 */);
+        tmp4 = _mm_add_ps(tmp4, _mm_mul_ps(b_tmp, b_tmp));
+        tmp3 = _mm_sub_ps(tmp3, _mm_xor_ps(tmp4, _mm_set_ss(-0.)));
+        // tmp3 needs to be scaled by (a0, a1, a2, a3)
 
-    	if translate	{
-    		tmp4 = _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */));
-    		tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b_xxxx, c));
-    		tmp4 = _mm_sub_ps(
-    			 tmp4, _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
-    		tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */)));
+        if translate {
+            tmp4 = _mm_mul_ps(b_xzwy, _mm_shuffle_ps(c, c, 156 /* 2, 1, 3, 0 */));
+            tmp4 = _mm_sub_ps(tmp4, _mm_mul_ps(b_xxxx, c));
+            tmp4 = _mm_sub_ps(
+                tmp4,
+                _mm_mul_ps(b_xwyz, _mm_shuffle_ps(c, c, 120 /* 1, 3, 2, 0 */)),
+            );
+            tmp4 = _mm_sub_ps(
+                tmp4,
+                _mm_mul_ps(b, _mm_shuffle_ps(c, c, 0 /* 0, 0, 0, 0 */)),
+            );
 
-    		// Mask low component and scale other components by 2
-    		tmp4 = _mm_mul_ps(tmp4, two);
-    		// tmp4 needs to be scaled by (_, a0, a0, a0)
-    	}
+            // Mask low component and scale other components by 2
+            tmp4 = _mm_mul_ps(tmp4, two);
+            // tmp4 needs to be scaled by (_, a0, a0, a0)
+        }
 
-    	return (tmp1, tmp2, tmp3, tmp4)
+        return (tmp1, tmp2, tmp3, tmp4);
     }
 }
 
@@ -721,20 +783,25 @@ pub fn sw312Common(translate:bool, b:__m128, c:__m128) ->(__m128, __m128, __m128
 
 // Apply a motor to one point
 #[inline]
-pub fn sw312_four(translate:bool, a:__m128 , b:__m128 ,c: __m128 ) -> __m128{
-    unsafe{
-    	let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
+pub fn sw312_four(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
+    unsafe {
+        let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
 
-    	let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a,a, 156 /* 2, 1, 3, 0 */));
-    	p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_shuffle_ps(a,a, 120 /* 1, 3, 2, 0 */)));
-    	p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
+        let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a, a, 156 /* 2, 1, 3, 0 */));
+        p = _mm_add_ps(
+            p,
+            _mm_mul_ps(tmp2, _mm_shuffle_ps(a, a, 120 /* 1, 3, 2, 0 */)),
+        );
+        p = _mm_add_ps(p, _mm_mul_ps(tmp3, a));
 
-    	if translate
-    	{
-    		p = _mm_add_ps(p, _mm_mul_ps(tmp4, _mm_shuffle_ps(a,a, 0 /* 0, 0, 0, 0 */)));
-    	}
+        if translate {
+            p = _mm_add_ps(
+                p,
+                _mm_mul_ps(tmp4, _mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */)),
+            );
+        }
 
-    	return p
+        return p;
     }
 }
 

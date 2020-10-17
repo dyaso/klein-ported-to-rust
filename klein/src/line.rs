@@ -1,4 +1,4 @@
-use crate::detail::sse::{hi_dp, dp_bc, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -130,7 +130,6 @@ impl Sub for IdealLine {
     }
 }
 
-
 //scalar_multiply!(IdealLine, unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s))) });
 
 /// Ideal line uniform scale
@@ -255,72 +254,6 @@ impl Neg for IdealLine {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /// The `branch` both a line through the origin and also the principal branch of
 /// the logarithm of a rotor.
 ///
@@ -353,14 +286,17 @@ pub struct Branch {
 
 impl From<__m128> for Branch {
     fn from(xmm: __m128) -> Branch {
-        Branch { p1_: xmm } 
+        Branch { p1_: xmm }
     }
-
 }
 
 impl Branch {
     pub fn default() -> Branch {
-        unsafe{ Branch {p1_: _mm_setzero_ps()} }
+        unsafe {
+            Branch {
+                p1_: _mm_setzero_ps(),
+            }
+        }
     }
 
     /// Construct the branch as the following multivector:
@@ -399,7 +335,7 @@ impl Branch {
     pub fn normalize(&mut self) {
         unsafe {
             let mut inv_norm = _mm_setzero_ps();
-            
+
             if self.scalar() == 0. {
                 // it's a Branch
                 inv_norm = rsqrt_nr1(hi_dp_bc(self.p1_, self.p1_));
@@ -576,13 +512,14 @@ impl Div<i32> for Branch {
 }
 
 impl Branch {
-
     /// Store m128 contents into an array of 4 floats
-    pub fn store(self) -> [f32;4] {
+    pub fn store(self) -> [f32; 4] {
         let mut out = <[f32; 4]>::default();
-        
-        unsafe {_mm_store_ps(&mut out[0], self.p1_);}
-        return out
+
+        unsafe {
+            _mm_store_ps(&mut out[0], self.p1_);
+        }
+        return out;
     }
 
     pub fn e12(self) -> f32 {
@@ -635,10 +572,12 @@ impl Branch {
 
     // rust port comment: Branches are also used to represent Rotors
     // Branches have scalar component = 0
-    pub fn scalar(self) -> f32    {
+    pub fn scalar(self) -> f32 {
         let mut out: f32 = 0.;
-        unsafe {_mm_store_ss(&mut out, self.p1_);}
-        return out
+        unsafe {
+            _mm_store_ss(&mut out, self.p1_);
+        }
+        return out;
     }
 
     /// Reversion operator
@@ -659,6 +598,29 @@ impl Neg for Branch {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // p1: (1, e12, e31, e23)
 // p2: (e0123, e01, e02, e03)
 
@@ -672,76 +634,31 @@ pub struct Line {
     pub p2_: __m128,
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+use std::fmt;
+
+impl fmt::Display for Line {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Line\n// p1: (1, e23, e31, e12)\n// p2: (e01, e02, e03, e0123)\n
+\t{}\t{}\t{}\t{}\n\t{}\t{}\t{}\t{}",self.scalar(), self.e23(), self.e31(), self.e12(), self.e01(), self.e02(), self.e03(), self.e0123())
+    }
+}
 
 impl Line {
+    pub fn scalar(self) -> f32 {
+        let mut out: f32 = 0.;
+        unsafe {
+            _mm_store_ss(&mut out, self.p1_);
+        }
+        return out;
+    }
+    pub fn e0123(self) -> f32 {
+        let mut out: f32 = 0.;
+        unsafe {
+            _mm_store_ss(&mut out, self.p2_);
+        }
+        return out;
+    }
+
     /// A line is specifed by 6 coordinates which correspond to the line's
     /// [Plücker
     /// coordinates](https://en.wikipedia.org/wiki/Pl%C3%BCcker_coordinates).
@@ -1064,52 +981,51 @@ impl Sub for Line {
 }
 
 /// Line uniform scale
-impl Mul<f32> for Line {
+impl<T: Into<f32>> Mul<T> for Line {
     type Output = Line;
     #[inline]
-    fn mul(self, s: f32) -> Self {
+    fn mul(self, s: T) -> Self {
         unsafe {
-            let vs: __m128 = _mm_set1_ps(s);
+            let vs: __m128 = _mm_set1_ps(s.into());
             Line::from(_mm_mul_ps(self.p1_, vs), _mm_mul_ps(self.p2_, vs))
         }
     }
 }
-impl Mul<f64> for Line {
-    type Output = Line;
-    #[inline]
-    fn mul(self, s: f64) -> Self {
-        self.mul(s as f32)
-    }
-}
-impl Mul<i32> for Line {
-    type Output = Line;
-    #[inline]
-    fn mul(self, s: i32) -> Self {
-        self.mul(s as f32)
-    }
+// impl Mul<f64> for Line {
+//     type Output = Line;
+//     #[inline]
+//     fn mul(self, s: f64) -> Self {
+//         self.mul(s as f32)
+//     }
+// }
+
+
+// struct Scalar<S>(S);
+
+// impl<T: Into<f32>> Mul<Line> for Scalar<T> {
+//     type Output = Line;
+//     #[inline]
+//     fn mul(self, l: Line) -> Line {
+//         return l * (<f32>::self.into());
+//     }
+// }
+
+// i couldn't work out how to get something like the above to work here
+macro_rules! mul_scalar_by_line {
+    ($s:ty) => {
+        impl Mul<Line> for $s {
+            type Output = Line;
+            #[inline]
+            fn mul(self, l: Line) -> Line {
+                return l * (self as f32);
+            }
+        }
+    };
 }
 
-impl Mul<Line> for f32 {
-    type Output = Line;
-    #[inline]
-    fn mul(self, l: Line) -> Line {
-        return l * self;
-    }
-}
-impl Mul<Line> for f64 {
-    type Output = Line;
-    #[inline]
-    fn mul(self, l: Line) -> Line {
-        return l * self as f32;
-    }
-}
-impl Mul<Line> for i32 {
-    type Output = Line;
-    #[inline]
-    fn mul(self, l: Line) -> Line {
-        return l * self as f32;
-    }
-}
+mul_scalar_by_line!(f32);
+mul_scalar_by_line!(f64);
+mul_scalar_by_line!(i32);
 
 /// Line uniform inverse scale
 impl Div<f32> for Line {
