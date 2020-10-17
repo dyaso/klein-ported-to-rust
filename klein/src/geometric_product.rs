@@ -376,8 +376,12 @@ mod tests {
         assert_eq!(p12.e03(), 2.);
         assert_eq!(p12.e0123(), 0.);
 
-        // plane p3 = sqrt(p1 / p2)(p2);
-        // assert_eq!(p3.approx_eq(p1, 0.001f), true);
+        let p3:Plane = (p1 / p2).sqrt().apply_to(p2);
+        //assert_eq!(p3.approx_eq(p1, 0.001f), true);
+        approx_eq(p3.x(), p1.x());
+        approx_eq(p3.y(), p1.y());
+        approx_eq(p3.z(), p1.z());
+        approx_eq(p3.d(), p1.d());
 
         p1.normalize();
         let m: Motor = p1 * p1;
@@ -447,28 +451,37 @@ mod tests {
         assert_eq!(l1l2.e03(), -4.);
         assert_eq!(l1l2.e0123(), 6.);
 
-        // l1.normalize();
-        // l2.normalize();
-        // line l3 = sqrt(l1 * l2)(l2);
-        // CHECK_EQ(l3.approx_eq(-l1, 0.001f), true);
+        l1.normalize();
+        l2.normalize();
+        let l3:Line = (l1 * l2).sqrt().apply_to(l2);
+        approx_eq(l1.scalar(), -l3.scalar());
+        approx_eq(l1.e23(), -l3.e23());
+        approx_eq(l1.e31(), -l3.e31());
+        approx_eq(l1.e12(), -l3.e12());
+        approx_eq(l1.e01(), -l3.e01());
+        approx_eq(l1.e02(), -l3.e02());
+        approx_eq(l1.e03(), -l3.e03());
+        approx_eq(l1.e0123(), -l3.e0123());
+//        CHECK_EQ(l3.approx_eq(-l1, 0.001f), true);
     }
 
     #[test]
     fn multivector_gp_branch_branch() {
-        let b1 = Branch::new(2., 1., 3.);
-        let b2 = Branch::new(1., -2., -3.);
+        let mut b2 = Branch::new(1., -2., -3.);
+        let mut b1 = Branch::new(2., 1., 3.);
         let r: Rotor = b2 * b1;
         assert_eq!(r.scalar(), 9.);
         assert_eq!(r.e23(), 3.);
         assert_eq!(r.e31(), 9.);
         assert_eq!(r.e12(), -5.);
 
-        // b1.normalize();
-        // b2.normalize();
-        // branch b3 = ~sqrt(b2 * b1)(b1);
-        // CHECK_EQ(b3.x(), doctest::Approx(b2.x()));
-        // CHECK_EQ(b3.y(), doctest::Approx(b2.y()));
-        // CHECK_EQ(b3.z(), doctest::Approx(b2.z()));
+        b1.normalize();
+        b2.normalize();
+        //branch b3 = ~sqrt(b2 * b1)(b1);
+        let b3: Branch = ((b2 * b1).sqrt().apply_to(b1)).reverse();
+        approx_eq(b3.x(), b2.x());
+        approx_eq(b3.y(), b2.y());
+        approx_eq(b3.z(), b2.z());
     }
 
     #[test]
@@ -524,10 +537,10 @@ mod tests {
         approx_eq(p1p2.e02(), -1.);
         approx_eq(p1p2.e03(), 1.);
 
-        //     point p3 = sqrt(p1p2)(p2);
-        //     CHECK_EQ(p3.x(), doctest::Approx(1.f));
-        //     CHECK_EQ(p3.y(), doctest::Approx(2.f));
-        //     CHECK_EQ(p3.z(), doctest::Approx(3.f));
+        let p3:Point = p1p2.sqrt().apply_to(p2);
+        approx_eq(p3.x(), 1.);
+        approx_eq(p3.y(), 2.);
+        approx_eq(p3.z(), 3.);
     }
 
     #[test]

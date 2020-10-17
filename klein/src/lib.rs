@@ -22,7 +22,7 @@ pub use plane::Plane;
 pub use point::{Element, Point};
 pub use rotor::{EulerAngles, Rotor};
 pub use translator::Translator;
-pub use util::ApplyOp;
+pub use util::{ApplyOp, ApplyToMany};
 
 #[cfg(test)]
 mod tests {

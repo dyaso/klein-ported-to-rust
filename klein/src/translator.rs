@@ -152,4 +152,22 @@ mod tests {
         assert_eq!(l2.e31(), 5.);
         assert_eq!(l2.e23(), -6.);
     }
+
+    use crate::detail::sandwich::sw02;
+    #[test]
+    fn simd_sandwich()  {
+        let mut ab = <[f32; 4]>::default();
+
+        unsafe {
+            let a = _mm_set_ps(4., 3., 2., 1.);
+            let b = _mm_set_ps(-1., -2., -3., -4.);
+            _mm_store_ps(&mut ab[0], sw02(a, b));
+        }
+
+        assert_eq!(ab[0], 9.);
+        assert_eq!(ab[1], 2.);
+        assert_eq!(ab[2], 3.);
+        assert_eq!(ab[3], 4.);
+    }
 }
+

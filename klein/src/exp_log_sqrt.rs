@@ -177,8 +177,8 @@ impl Motor {
         unsafe {
             let mut m =
                 Motor::from_rotor_and_translator(_mm_add_ss(self.p1_, _mm_set_ss(1.)), self.p2_);
-            m.normalize();
-            return m;
+            m.normalized_motor()
+//            return m
         }
     }
 }

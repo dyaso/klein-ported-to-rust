@@ -412,51 +412,63 @@ pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
     }
 }
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe void swMM(
-// 			bool translate, bool InputP2,
-// 			__m128* inp, __m128 b, __m128 c,
-// 			__m128* res, int count)
-// 		{
-// 			var (tmp1, tmp2, tmp3) = swMMRotation(b);
+use crate::Line;
 
-// 			var (tmp4, tmp5, tmp6) = translate ? swMMTranslation(b, c) : (__m128.Zero, __m128.Zero, __m128.Zero);
+#[inline]
+pub fn swMM_seven(
+	translate: bool, InputP2: bool,
+	inp: &[Line], b: __m128, c: __m128,
+	res: &mut [Line], count:usize) {
+	let (tmp1, tmp2, tmp3) = swMMRotation(b);
 
-// 			int stride = InputP2 ? 2 : 1;
-// 			for (int i = 0; i < count; ++i)
-// 			{
-// 				ref __m128 p1_in = ref inp[stride * i]; // a
-// 				__m128 p1_in_xzwy = _mm_swizzle_ps(p1_in, 120 /* 1, 3, 2, 0 */);
-// 				__m128 p1_in_xwyz = _mm_swizzle_ps(p1_in, 156 /* 2, 1, 3, 0 */);
+    unsafe{
 
-// 				ref __m128 p1_out = ref res[stride * i];
+    	let (mut tmp4, mut tmp5, mut tmp6) = (_mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps());
+        if translate {
+            let (ttmp4, ttmp5, ttmp6) = swMMTranslation(b, c);
+            tmp4 = ttmp4;
+            tmp5 = ttmp5;
+            tmp6 = ttmp6;
+        }
 
-// 				p1_out = _mm_mul_ps(tmp1, p1_in);
-// 				p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-// 				p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+        let mut stride = 1;
+        if InputP2 {
+            stride = 2;
+        }
 
-// 				if (InputP2)
-// 				{
-// 					ref __m128 p2_in = ref inp[2 * i + 1]; // d
-// 					ref __m128 p2_out = ref res[2 * i + 1];
-// 					p2_out = _mm_mul_ps(tmp1, p2_in);
-// 					p2_out = _mm_add_ps(
-// 						p2_out, _mm_mul_ps(tmp2, _mm_swizzle_ps(p2_in, 120 /* 1, 3, 2, 0 */)));
-// 					p2_out = _mm_add_ps(
-// 						p2_out, _mm_mul_ps(tmp3, _mm_swizzle_ps(p2_in, 156 /* 2, 1, 3, 0 */)));
-// 				}
+    	for i in 0..count {
+    		let p1_in = inp[i].p1_; // a
+    		let p1_in_xzwy = _mm_shuffle_ps(p1_in,p1_in, 120 /* 1, 3, 2, 0 */);
+    		let p1_in_xwyz = _mm_shuffle_ps(p1_in,p1_in, 156 /* 2, 1, 3, 0 */);
 
-// 				// If what is being applied is a rotor, the non-directional
-// 				// components of the line are left untouched
-// 				if translate
-// 				{
-// 					ref __m128 p2_out = ref res[2 * i + 1];
-// 					p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp4, p1_in));
-// 					p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
-// 					p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
-// 				}
-// 			}
-// 		}
+    		// ref __m128 p1_out = ref res[stride * i];
+
+    		res[i].p1_ = _mm_mul_ps(tmp1, p1_in);
+    		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp2, p1_in_xzwy));
+    		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp3, p1_in_xwyz));
+
+    		if InputP2 {
+    			let p2_in = inp[i].p2_; // d
+    			// let res[2*i + 1] = ref res[2 * i + 1];
+    			res[i].p2_ = _mm_mul_ps(tmp1, p2_in);
+    			res[i].p2_ = _mm_add_ps(
+    				res[i].p2_, _mm_mul_ps(tmp2, _mm_shuffle_ps(p2_in,p2_in, 120 /* 1, 3, 2, 0 */)));
+    			res[i].p2_ = _mm_add_ps(
+    				res[i].p2_, _mm_mul_ps(tmp3, _mm_shuffle_ps(p2_in,p2_in, 156 /* 2, 1, 3, 0 */)));
+    		}
+
+    		// If what is being applied is a rotor, the non-directional
+    		// components of the line are left untouched
+    		if translate
+    		{
+    			//ref __m128 res[i].p2_ = ref res[2 * i + 1];
+    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp4, p1_in));
+    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp5, p1_in_xwyz));
+    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp6, p1_in_xzwy));
+    		}
+    	}
+    }
+}
 
 #[inline]
 pub fn swMM_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, __m128) {
@@ -516,19 +528,21 @@ pub fn swMM_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
     }
 }
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static __m128 swMM(__m128 inp1, __m128 b)
-// 		{
-// 			var (tmp1, tmp2, tmp3) = swMMRotation(b);
+#[inline]
+pub fn swMM_two(inp1: __m128, b: __m128) -> __m128{
+	let (tmp1, tmp2, tmp3) = swMMRotation(b);
 
-// 			__m128 p1_in_xzwy = _mm_swizzle_ps(inp1, 120 /* 1, 3, 2, 0 */);
-// 			__m128 p1_in_xwyz = _mm_swizzle_ps(inp1, 156 /* 2, 1, 3, 0 */);
+    unsafe{
 
-// 			var p1_out = _mm_mul_ps(tmp1, inp1);
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-// 			p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
-// 			return p1_out;
-// 		}
+    	let p1_in_xzwy = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
+    	let p1_in_xwyz = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
+
+    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+    	return p1_out
+    }
+}
 
 // Apply a motor to a plane
 // a := p0
@@ -641,28 +655,29 @@ pub fn sw012Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __
     }
 }
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe void sw012(bool translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
-// 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
+use crate::Plane;
 
-// 			// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
-// 			// dependence on b and c.
-// 			for (int i = 0; i < count; ++i)
-// 			{
-// 				// Compute the lower block for components e1, e2, and e3
-// 				ref __m128 p = ref res[i];
-// 				p = _mm_mul_ps(tmp1, _mm_swizzle_ps(a[i], 120 /* 1, 3, 2, 0 */));
-// 				p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a[i], 156 /* 2, 1, 3, 0 */)));
-// 				p = _mm_add_ps(p, _mm_mul_ps(tmp3, a[i]));
+#[inline]
+pub fn sw012_six(translate:bool, a: &[Plane], b: __m128, c: __m128, res: &mut [Plane], count: usize) {
+	let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
 
-// 				if translate
-// 				{
-// 					__m128 tmp5 = hi_dp(tmp4, a[i]);
-// 					p = _mm_add_ps(p, tmp5);
-// 				}
-// 			}
-// 		}
+	// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
+	// dependence on b and c.
+	for i in 0..count {
+		// Compute the lower block for components e1, e2, and e3
+	    // let ref p = res[i];
+        unsafe {
+    		res[i].p0_ = _mm_mul_ps(tmp1, _mm_shuffle_ps(a[i].p0_, a[i].p0_, 120 /* 1, 3, 2, 0 */));
+    		res[i].p0_ = _mm_add_ps(res[i].p0_, _mm_mul_ps(tmp2, _mm_shuffle_ps(a[i].p0_,a[i].p0_, 156 /* 2, 1, 3, 0 */)));
+    		res[i].p0_ = _mm_add_ps(res[i].p0_, _mm_mul_ps(tmp3, a[i].p0_));
+
+    		if translate {
+    			let tmp5 = hi_dp(tmp4, a[i].p0_);
+    			res[i].p0_ = _mm_add_ps(res[i].p0_, tmp5);
+    		}
+        }
+	}
+}
 
 #[inline]
 pub fn sw012(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {

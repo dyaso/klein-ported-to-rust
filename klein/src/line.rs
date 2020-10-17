@@ -513,14 +513,22 @@ impl Div<i32> for Branch {
 
 impl Branch {
     /// Store m128 contents into an array of 4 floats
-    pub fn store(self) -> [f32; 4] {
-        let mut out = <[f32; 4]>::default();
+    pub fn store(self, out: &mut f32) {
+        //let mut out = <[f32; 4]>::default();
 
         unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
+            _mm_store_ps(&mut *out, self.p1_);
         }
-        return out;
+//        return out;
     }
+    // pub fn store(self) -> [f32; 4] {
+    //     let mut out = <[f32; 4]>::default();
+
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p1_);
+    //     }
+    //     return out;
+    // }
 
     pub fn e12(self) -> f32 {
         let mut out = <[f32; 4]>::default();
@@ -644,6 +652,7 @@ impl fmt::Display for Line {
 }
 
 impl Line {
+//    pub fn default() -> Line {Line {p1_:_mm_setzero_ps(),p2_:_mm_setzero_ps()}}
     pub fn scalar(self) -> f32 {
         let mut out: f32 = 0.;
         unsafe {

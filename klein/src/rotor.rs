@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw02, sw32, swL2, swMM_three};
+use crate::detail::sandwich::{sw012, sw02, sw32, swL2, swMM_three, swMM_two};
 use crate::detail::sse::{dp_bc, rsqrt_nr1}; //rcp_nr1, hi_dp, hi_dp_bc, };
 
 use crate::util::ApplyOp;
@@ -69,7 +69,7 @@ impl EulerAngles {
 
 pub type Rotor = Branch;
 
-impl Branch {
+impl Rotor {
     /// Convenience constructor. Computes transcendentals and normalizes
     /// rotation axis.
     pub fn rotor(ang_rad: f32, x: f32, y: f32, z: f32) -> Rotor {
@@ -87,9 +87,7 @@ impl Branch {
             return Rotor::from(p1_)
         }
     }
-}
 
-impl Rotor {
     /// Fast load operation for packed data that is already normalized. The
     /// argument `data` should point to a set of 4 float values with layout `(a,
     /// b, c, d)` corresponding to the multivector
@@ -102,6 +100,30 @@ impl Rotor {
     pub fn load_normalized(&mut self, data: &f32) {
         unsafe {
             self.p1_ = _mm_loadu_ps(data);
+        }
+    }
+
+    pub fn from_euler_angles(ea: &EulerAngles) -> Rotor {
+        // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#cite_note-3
+        let half_yaw: f32 = ea.yaw * 0.5;
+        let half_pitch: f32 = ea.pitch * 0.5;
+        let half_roll: f32 = ea.roll * 0.5;
+        let cos_y: f32 = f32::cos(half_yaw);
+        let sin_y: f32 = f32::sin(half_yaw);
+        let cos_p: f32 = f32::cos(half_pitch);
+        let sin_p: f32 = f32::sin(half_pitch);
+        let cos_r: f32 = f32::cos(half_roll);
+        let sin_r: f32 = f32::sin(half_roll);
+
+        unsafe {
+            let mut p1_ = _mm_set_ps(
+                cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
+                cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
+                sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
+                cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
+            );
+
+            return Rotor::from(p1_).normalized_rotor();
         }
     }
 
@@ -125,31 +147,37 @@ impl Rotor {
         let pi_2 = pi / 2.;
 
         let mut ea = EulerAngles::default();
-        let buf = self.store();
-        let test = buf[1] * buf[2] + buf[3] * buf[0];
+
+
+        #[repr(align(16))]
+        struct ArrayAlignedTo16ByteBoundary {mem: [f32; 4] };
+
+        let mut buf = ArrayAlignedTo16ByteBoundary{mem: <[f32; 4]>::default()};
+        self.store(&mut buf.mem[0]);
+        let test = buf.mem[1] * buf.mem[2] + buf.mem[3] * buf.mem[0];
 
         if test > 0.4999 {
-            ea.roll = 2. * f32::atan2(buf[1], buf[0]);
+            ea.roll = 2. * f32::atan2(buf.mem[1], buf.mem[0]);
             ea.pitch = pi_2;
             ea.yaw = 0.;
             return ea;
         } else if test < -0.4999 {
-            ea.roll = -2. * f32::atan2(buf[1], buf[0]);
+            ea.roll = -2. * f32::atan2(buf.mem[1], buf.mem[0]);
             ea.pitch = -pi_2;
             ea.yaw = 0.;
             return ea;
         }
 
-        let buf1_2 = buf[1] * buf[1];
-        let buf2_2 = buf[2] * buf[2];
-        let buf3_2 = buf[3] * buf[3];
+        let buf1_2 = buf.mem[1] * buf.mem[1];
+        let buf2_2 = buf.mem[2] * buf.mem[2];
+        let buf3_2 = buf.mem[3] * buf.mem[3];
 
         ea.roll = f32::atan2(
-            2. * (buf[0] * buf[1] + buf[2] * buf[3]),
+            2. * (buf.mem[0] * buf.mem[1] + buf.mem[2] * buf.mem[3]),
             1. - 2. * (buf1_2 + buf2_2),
         );
 
-        let sinp = 2. * (buf[0] * buf[2] - buf[1] * buf[3]);
+        let sinp = 2. * (buf.mem[0] * buf.mem[2] - buf.mem[1] * buf.mem[3]);
         if f32::abs(sinp) > 1. {
             ea.pitch = f32::copysign(pi_2, sinp);
         } else {
@@ -157,7 +185,7 @@ impl Rotor {
         }
 
         ea.yaw = f32::atan2(
-            2. * (buf[0] * buf[3] + buf[1] * buf[2]),
+            2. * (buf.mem[0] * buf.mem[3] + buf.mem[1] * buf.mem[2]),
             1. - 2. * (buf2_2 + buf3_2),
         );
         return ea;
@@ -183,6 +211,13 @@ impl PartialEq for Rotor {
     }
 }
 
+
+impl ApplyOp<Branch> for Rotor {
+    fn apply_to(self, rhs: Branch) -> Branch {
+        Branch{p1_: swMM_two(rhs.p1_, self.p1_)}
+    }
+}
+
 //        [[nodiscard]] line KLN_VEC_CALL operator()(line const& l) const noexcept
 impl ApplyOp<Line> for Rotor {
     /// Conjugates a line $\ell$ with this rotor and returns the result
@@ -202,31 +237,8 @@ impl ApplyOp<Point> for Rotor {
     }
 }
 
-impl From<&EulerAngles> for Rotor {
-    fn from(ea: &EulerAngles) -> Rotor {
-        // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#cite_note-3
-        let half_yaw: f32 = ea.yaw * 0.5;
-        let half_pitch: f32 = ea.pitch * 0.5;
-        let half_roll: f32 = ea.roll * 0.5;
-        let cos_y: f32 = f32::cos(half_yaw);
-        let sin_y: f32 = f32::sin(half_yaw);
-        let cos_p: f32 = f32::cos(half_pitch);
-        let sin_p: f32 = f32::sin(half_pitch);
-        let cos_r: f32 = f32::cos(half_roll);
-        let sin_r: f32 = f32::sin(half_roll);
-
-        unsafe {
-            let mut p1_ = _mm_set_ps(
-                cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
-                cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
-                sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
-                cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
-            );
-
-            return Rotor::from(p1_).normalized_rotor();
-        }
-    }
-}
+// impl From<&EulerAngles> for Rotor {
+// }
 
 #[cfg(test)]
 mod tests {
@@ -271,7 +283,7 @@ mod tests {
     fn euler_angles_precision() {
         let pi = std::f32::consts::PI;
         let ea1 = EulerAngles::new(pi * 0.2, pi * 0.2, 0.);
-        let r1 = Rotor::from(&ea1);
+        let r1 = Rotor::from_euler_angles(&ea1);
         let ea2 = r1.as_euler_angles();
 
         approx_eq(ea1.roll, ea2.roll);
@@ -279,29 +291,33 @@ mod tests {
         approx_eq(ea1.yaw, ea2.yaw);
     }
 
-    // #[test]
-    // fn euler_angles() {
-    //    // Make 3 rotors about the x, y, and z-axes.
-    //    let rx = Rotor::rotor(1., 1., 0., 0.);
-    //    let ry = Rotor::rotor(1., 0., 1., 0.);
-    //    let rz = Rotor::rotor(1., 0., 0., 1.);
+    #[test]
+    fn euler_angles() {
+        // Make 3 rotors about the x, y, and z-axes.
+        let rx = Rotor::rotor(1., 1., 0., 0.);
+        let ry = Rotor::rotor(1., 0., 1., 0.);
+        let rz = Rotor::rotor(1., 0., 0., 1.);
 
-    //    rotor r = rx * ry * rz;
-    //    auto ea = r.as_euler_angles();
-    //    CHECK_EQ(ea.roll, doctest::Approx(1.f));
-    //    CHECK_EQ(ea.pitch, doctest::Approx(1.f));
-    //    CHECK_EQ(ea.yaw, doctest::Approx(1.f));
+        let mut r: Rotor = rx * ry * rz;
+        let ea = r.as_euler_angles();
+        approx_eq(ea.roll, 1.);
+        approx_eq(ea.pitch, 1.);
+        approx_eq(ea.yaw, 1.);
 
-    //    rotor r2{ea};
+        let mut r2 = Rotor::from_euler_angles(&ea);
 
-    //    float buf[8];
-    //    r.store(buf);
-    //    r2.store(buf + 4);
-    //    for (size_t i = 0; i != 4; ++i)
-    //    {
-    //        CHECK_EQ(buf[i], doctest::Approx(buf[i + 4]));
-    //    }
-    // }
+        #[repr(align(16))]
+        struct ArrayAlignedTo16ByteBoundary {mem: [f32; 8] };
+
+        let mut buf = ArrayAlignedTo16ByteBoundary{mem: <[f32; 8]>::default()};
+        //let mut buf = <[f32; 8]>::default();
+
+        r.store(&mut buf.mem[0]);
+        r2.store(&mut buf.mem[4]);
+        for i in 0..4  {
+            approx_eq(buf.mem[i], buf.mem[i+4]);
+        }
+    }
 
     #[test]
     fn rotor_constrain() {

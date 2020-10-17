@@ -2,6 +2,10 @@ pub trait ApplyOp<O> {
     fn apply_to(self, other: O) -> O;
 }
 
+pub trait ApplyToMany<O> {
+    fn apply_to_many(self, input: &[O], other: &mut [O], count: usize);
+}
+
 #[cfg(test)]
 mod tests {
     #[cfg(target_arch = "x86_64")]

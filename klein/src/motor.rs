@@ -1,14 +1,14 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three};
+use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three, sw012_six, swMM_seven};
 use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
 use crate::detail::exp_log::simd_exp;
 use crate::detail::geometric_product::gpDL;
 
 use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Plane, Point, Rotor, Translator};
+use crate::{Branch, Dual, IdealLine, Line, Plane, Point, Rotor, Translator, ApplyToMany};
 
 /// \defgroup motor Motors
 ///
@@ -203,6 +203,17 @@ impl Motor {
         return out;
     }
 
+    /// Load motor data using two unaligned loads. This routine does *not*
+    /// assume the data passed in this way is normalized.
+    pub fn load(&mut self, source: &[f32; 2]) {
+        // Aligned and unaligned loads incur the same amount of latency and have
+        // identical throughput on most modern processors
+        unsafe {
+            self.p1_ = _mm_loadu_ps(&source[0]);
+            self.p2_ = _mm_loadu_ps(&source[1]);
+        }
+    }
+
     pub fn invert(&mut self) {
         unsafe {
             // s, t computed as in the normalization
@@ -389,6 +400,34 @@ impl ApplyOp<Plane> for Motor {
     }
 }
 
+// /// Conjugates a plane $p$ with this motor and returns the result
+// /// $mp\widetilde{m}$.
+// [[nodiscard]] plane KLN_VEC_CALL operator()(plane const& p) const noexcept
+// {
+// plane out;
+// detail::sw012<false, true>(&p.p0_, p1_, &p2_, &out.p0_);
+// return out;
+// }
+
+/// Conjugates an array of planes with this motor in the input array and
+/// stores the result in the output array. Aliasing is only permitted when
+/// `in == out` (in place motor application).
+///
+/// !!! tip
+///
+/// When applying a motor to a list of tightly packed planes, this
+/// routine will be *significantly faster* than applying the motor to
+/// each plane individually.
+
+impl ApplyToMany<Plane> for Motor {
+    fn apply_to_many(self, input: &[Plane], output: &mut [Plane], count: usize) {
+        sw012_six(true, &input, self.p1_, self.p2_, output, count);
+        // unsafe {
+        //     return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
+        // }
+    }
+}
+
 impl ApplyOp<Point> for Motor {
     /// Conjugates a point $p$ with this motor and returns the result
     /// $mp\widetilde{m}$.
@@ -403,6 +442,21 @@ impl ApplyOp<Line> for Motor {
     fn apply_to(self, rhs: Line) -> Line {
         let (branch, ideal) = swMM_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
         return Line::from(branch, ideal);
+    }
+}
+
+    /// Conjugates an array of lines with this motor in the input array and
+    /// stores the result in the output array. Aliasing is only permitted when
+    /// `in == out` (in place motor application).
+    ///
+    /// !!! tip
+    ///
+    /// When applying a motor to a list of tightly packed lines, this
+    /// routine will be *significantly faster* than applying the motor to
+    /// each line individually.
+impl ApplyToMany<Line> for Motor {
+    fn apply_to_many(self, input: &[Line], output: &mut [Line], count: usize) {
+        swMM_seven(true, true, &input, self.p1_, self.p2_, output, count);
     }
 }
 
@@ -428,6 +482,25 @@ mod tests {
         assert_eq!(p2.d(), 358.);
     }
 
+    use crate::ApplyToMany;
+
+    #[test]
+    pub fn motor_plane_variadic()    {
+        let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+        let ps: [Plane; 2] = [Plane::new(3., 2., 1., -1.), 
+                              Plane::new(3., 2., 1., -1.)];
+        let mut ps2 = <[Plane; 2]>::default();
+        m.apply_to_many(&ps, &mut ps2, 2);
+
+        for i in 0..2        {
+            assert_eq!(ps2[i].x(), 78.);
+            assert_eq!(ps2[i].y(), 60.);
+            assert_eq!(ps2[i].z(), 54.);
+            assert_eq!(ps2[i].d(), 358.);
+        }
+    }
+
+
     #[test]
     fn motor_point() {
         let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
@@ -438,6 +511,23 @@ mod tests {
         assert_eq!(p2.z(), -86.);
         assert_eq!(p2.w(), 30.);
     }
+
+    // #[test]
+    // fn motor_point_variadic()    {
+    //     let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+    //     let ps: [Point; 2] = [Point::new(-1., 1., 2.), 
+    //                           Point::new(-1., 1., 2.)];
+    //     let mut ps2 = <[Plane; 2]>::default();
+
+    //     m.apply_to_many(&ps, &mut ps2, 2);
+
+    //     for i in 0..2        {
+    //         assert_eq!(ps2[i].x(), -12.);
+    //         assert_eq!(ps2[i].y(), -86.);
+    //         assert_eq!(ps2[i].z(), -86.);
+    //         assert_eq!(ps2[i].w(), 30.);
+    //     }
+    // }
 
     #[test]
     fn motor_constrain() {
@@ -502,6 +592,26 @@ mod tests {
         assert_eq!(l2.e12(), -214.);
         assert_eq!(l2.e31(), -148.);
         assert_eq!(l2.e23(), -40.);
+    }
+
+    #[test]
+    fn motor_line_variadic() {
+        let m = Motor::new(2., 4., 3., -1., -5., -2., 2., -3.);
+        // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
+        let ls: [Line; 2] = [Line::new(-1., 2., -3., -6., 5., 4.), 
+                             Line::new(-1., 2., -3., -6., 5., 4.)];
+        let mut ls2: [Line; 2] = [Line::default(), Line::default()];
+
+        m.apply_to_many(&ls, &mut ls2, 2);
+
+        for i in 0..2 {
+            assert_eq!(ls2[i].e01(), 6.);
+            assert_eq!(ls2[i].e02(), 522.);
+            assert_eq!(ls2[i].e03(), 96.);
+            assert_eq!(ls2[i].e12(), -214.);
+            assert_eq!(ls2[i].e31(), -148.);
+            assert_eq!(ls2[i].e23(), -40.);
+        }
     }
 
     #[test]
