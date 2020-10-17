@@ -9,7 +9,7 @@ use druid::{
     Point as DruidPoint, Rect, TextLayout, WindowDesc,
 };
 
-use klein::{Line, Plane, Point, Translator};
+use klein::{ApplyOp, Line, Plane, Point, Rotor, Translator};
 
 #[derive(Default)]
 struct CustomWidget {
@@ -33,6 +33,14 @@ struct CustomWidget {
 }
 
 impl CustomWidget {
+    fn to_druid_point(&self, p: &Point) -> DruidPoint {
+        let pn = p; //.normalized();
+        DruidPoint::new(
+            (pn.x() as f64 - self.left) / self.scale,
+            (self.top - pn.y() as f64) / self.scale,
+        )
+    }
+
     fn new() -> CustomWidget {
         CustomWidget {
             lower_y: -2.,
@@ -43,7 +51,6 @@ impl CustomWidget {
         }
     }
     pub fn set_window_boundary_planes(&mut self, state: &State, window: &kurbo::Size) {
-        println!("HELSES");
         let desired_width = self.right_x - self.left_x;
         let desired_height = self.upper_y - self.lower_y;
         let desired_aspect_ratio = desired_width / desired_height;
@@ -155,7 +162,6 @@ impl CustomWidget {
                 data.mouse_over = Some(i);
             }
         }
-        println!("mouse state {:?}", data.mouse_over);
 
         // println!("mosue pos {} {}",mouse_point.get032(), mouse_point.get013())
     }
@@ -164,16 +170,20 @@ impl CustomWidget {
 use std::rc::Rc;
 
 #[derive(Clone, Data, Default)]
-struct State 
-    {points: Rc<Vec<Point>>,
-     mouse_over: Option<usize>,
- }
+struct State {
+    points: Rc<Vec<Point>>,
+    mouse_over: Option<usize>,
+    mesh: Rc<Vec<Point>>,
+    indices: Rc<Vec<Vec<usize>>>,
+    time: f64,
+}
 
 impl Widget<State> for CustomWidget {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut State, _env: &Env) {
         match event {
             Event::WindowConnected => {
                 ctx.request_focus();
+                ctx.request_anim_frame();
             }
             Event::KeyDown(e) => {
                 println!("key down event {:?}", e);
@@ -182,10 +192,15 @@ impl Widget<State> for CustomWidget {
                 let old = data.mouse_over;
                 self.mouse_move(e, data);
                 if data.mouse_over != old {
-                            ctx.request_paint();
-
+                    ctx.request_paint();
                 }
             }
+            Event::AnimFrame(_interval) => {
+                data.time += 0.01;
+                ctx.request_paint();
+                ctx.request_anim_frame();
+            }
+
             _ => {
                 println!("unhandled input event {:?}", event);
             }
@@ -257,53 +272,46 @@ impl Widget<State> for CustomWidget {
         let mut over1 = false;
         let mut over2 = false;
         if let Some(i) = data.mouse_over {
-            println!("mouse over {}",i);
+            println!("mouse over {}", i);
             if i == 0 {
                 over1 = true;
-
-            } else if i==1 {
+            } else if i == 1 {
                 over2 = true;
             }
-
         }
         let p1 = data.points[0];
         let p2 = data.points[1];
 
         let l = p1 & p2;
 
-        self.draw_point(ctx, &p1, over1);
-        self.draw_point(ctx, &p2, over2);
+        // self.draw_point(ctx, &p1, over1);
+        // self.draw_point(ctx, &p2, over2);
 
         let l2 = &(Point::new(0.3, 0., 0.) & Point::new(0., 1., 0.));
 
-let zplane = Plane::new(0.,0.,1.,0.);
-
+        let zplane = Plane::new(0., 0., 1., 0.);
 
         let z1 = Point::new(0., 0., 1.);
         let pz = p1 + z1;
-        println!("{}", p1);
-        println!("{}", pz);
+        // println!("{}", p1);
+        // println!("{}", pz);
 
-        let trans = Translator::translator(1.,0.,0.,1.);
+        let trans = Translator::translator(1., 0., 0., 1.);
 
         let plan = l | zplane;
         // let plan = (p1 & p2 & Point::direction(0., 0., 1.));
 
-        self.draw_line(ctx, &l);
-        self.draw_line(ctx, l2);
-
+        // self.draw_line(ctx, &l);
+        // self.draw_line(ctx, l2);
 
         let int = *l2 ^ plan;
-        self.draw_point(ctx, &int.normalized(), false);
+        // self.draw_point(ctx, &int.normalized(), false);
 
-
-
-        // let zAxis = 
+        // let zAxis =
         //let p = *l & (*l2 ^ Point::direction(0., 0., 1.));
 
-        println!("{}", plan);
+        // println!("{}", plan);
         // self.draw_point(ctx, &p);
-
 
         //         // 0 = same plane (intersect at origin)
         //         // -1e02 parallel planes separated but parallel
@@ -320,10 +328,22 @@ let zplane = Plane::new(0.,0.,1.,0.);
         //             &fill_color,
         //             5.0,
         //         );
+        let r = Rotor::rotor(data.time as f32, 1., -1., 0.5);
+
+        for p in data.indices.iter() {
+            // println!("drawing {} {} {}", p[0], p[1], p[2]);
+            let mut path = BezPath::new();
+            path.move_to(self.to_druid_point(&r.apply_to(data.mesh[p[0]])));
+            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[1]])));
+            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[2]])));
+            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[0]])));
+            let stroke_color = Color::rgb8(240, 240, 240);
+            ctx.stroke(path, &stroke_color, 4.0);
+        }
 
         // Text is easy; in real use TextLayout should be stored in the widget
         // and reused.
-        let mut layout = TextLayout::<ArcStr>::from_text("hello"); //data.to_owned());
+        let mut layout = TextLayout::<ArcStr>::from_text("klein rust"); //data.to_owned());
         layout.set_font(
             FontDescriptor::new(FontFamily::SANS_SERIF)
                 .with_size(24.0) //.with_weight(FontWeight::BOLD)
@@ -374,28 +394,12 @@ let zplane = Plane::new(0.,0.,1.,0.);
     }
 }
 
-fn draw_triangle(ctx: &mut PaintCtx, idx: usize, vertices: Vec<Point>, indices: Vec<Vec<usize>>) {
-    
-}
+fn draw_triangle(ctx: &mut PaintCtx, idx: usize, vertices: Vec<Point>, indices: Vec<Vec<usize>>) {}
 
 pub fn main() {
     let window = WindowDesc::new(|| CustomWidget::new()).title(
-        LocalizedString::new("custom-widget-demo-window-title")
-            .with_placeholder("z=0 plane 2d graphics"),
+        LocalizedString::new("custom-widget-demo-window-title").with_placeholder("klein rust demo"),
     );
-
-    let pi = std::f32::consts::PI;
-    let sh = f32::sin(pi/6.);
-    let lo = f32::cos(pi/6.);
-    let mesh: Vec<Point> = vec!(
-        Point::new(0., 1., 0.),
-        Point::new(0., -sh, -lo),
-        Point::new(-lo, -sh, sh),
-        Point::new(-lo, -sh, sh),
-        );
-    let indices: Vec<Vec<usize>> 
-        = vec!(vec!(0,1,2),vec!(0,2,3),vec!(0,3,1),vec!(1,3,2));
-
     let mut s = State {
         ..Default::default()
     };
@@ -403,6 +407,23 @@ pub fn main() {
     let mut ps = Rc::get_mut(&mut s.points).unwrap();
     ps.push(Point::new(0., 0.6, 0.));
     ps.push(Point::new(0.94, 0., 0.));
+
+    let y1 = Point::new(0., 1., 0.);
+    let p1 = Rotor::rotor(f32::acos(-1. / 3.), 1., 0., 0.).apply_to(y1);
+    let r = Rotor::rotor(f32::acos(-0.5), 0., 1., 0.);
+    let p2 = r.apply_to(p1);
+
+    let mut mesh = Rc::get_mut(&mut s.mesh).unwrap();
+    mesh.push(y1);
+    mesh.push(p1);
+    mesh.push(p2);
+    mesh.push(r.apply_to(p2));
+
+    let mut indices = Rc::get_mut(&mut s.indices).unwrap();
+    indices.push(vec![0, 1, 2]);
+    indices.push(vec![0, 2, 3]);
+    indices.push(vec![0, 3, 1]);
+    indices.push(vec![1, 3, 2]);
 
     AppLauncher::with_window(window)
         .use_simple_logger()

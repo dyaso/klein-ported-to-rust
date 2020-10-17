@@ -84,7 +84,7 @@ impl Branch {
         unsafe {
             let mut p1_ = _mm_set_ps(z, y, x, f32::cos(half));
             p1_ = _mm_mul_ps(p1_, _mm_set_ps(scale, scale, scale, 1.));
-            return Rotor::from(p1_);
+            return Rotor::from(p1_)
         }
     }
 }
