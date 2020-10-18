@@ -1,11 +1,11 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 //use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
-use crate::detail::sandwich::{sw02, sw32, swL2};
+use crate::detail::sandwich::{sw02, sw32, sw_l2};
 
 use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
+use crate::{IdealLine, Line, Plane, Point};
 
 /// \defgroup translator Translators
 ///
@@ -88,11 +88,11 @@ impl Translator {
 impl ApplyOp<Plane> for Translator {
     fn apply_to(self, p: Plane) -> Plane {
         unsafe {
-            let mut tmp: __m128 = _mm_setzero_ps();
+            let tmp: __m128;
             if is_x86_feature_detected!("sse4.1") {
-                let tmp = _mm_blend_ps(self.p2_, _mm_set_ss(1.), 1);
+                tmp = _mm_blend_ps(self.p2_, _mm_set_ss(1.), 1);
             } else {
-                let tmp = _mm_add_ps(self.p2_, _mm_set_ss(1.));
+                tmp = _mm_add_ps(self.p2_, _mm_set_ss(1.));
             }
             Plane::from(sw02(p.p0_, tmp))
         }
@@ -103,7 +103,7 @@ impl ApplyOp<Plane> for Translator {
 /// $t\ell\widetilde{t}$.
 impl ApplyOp<Line> for Translator {
     fn apply_to(self, l: Line) -> Line {
-        Line::from(l.p1_, swL2(l.p1_, l.p2_, self.p2_))
+        Line::from(l.p1_, sw_l2(l.p1_, l.p2_, self.p2_))
     }
 }
 
@@ -120,12 +120,12 @@ mod tests {
     #[cfg(target_arch = "x86_64")]
     use std::arch::x86_64::*;
 
+    #[allow(dead_code)]
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, IdealLine, Line, Plane, Point, Translator};
-    // use self::Translator;
+    use crate::{ApplyOp, Line, Point, Translator};
 
     #[test]
     fn translator_point() {

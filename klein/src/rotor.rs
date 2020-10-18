@@ -1,11 +1,11 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw02, sw32, swL2, swMM_three, swMM_two};
+use crate::detail::sandwich::{sw012, sw_mm_three, sw_mm_two};
 use crate::detail::sse::{dp_bc, rsqrt_nr1}; //rcp_nr1, hi_dp, hi_dp_bc, };
 
 use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
+use crate::{Branch, Line, Point};
 
 #[derive(Default)]
 pub struct EulerAngles {
@@ -116,7 +116,7 @@ impl Rotor {
         let sin_r: f32 = f32::sin(half_roll);
 
         unsafe {
-            let mut p1_ = _mm_set_ps(
+            let p1_ = _mm_set_ps(
                 cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
                 cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
                 sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
@@ -214,7 +214,7 @@ impl PartialEq for Rotor {
 
 impl ApplyOp<Branch> for Rotor {
     fn apply_to(self, rhs: Branch) -> Branch {
-        Branch{p1_: swMM_two(rhs.p1_, self.p1_)}
+        Branch{p1_: sw_mm_two(rhs.p1_, self.p1_)}
     }
 }
 
@@ -223,7 +223,7 @@ impl ApplyOp<Line> for Rotor {
     /// Conjugates a line $\ell$ with this rotor and returns the result
     /// $r\ell \widetilde{r}$.
     fn apply_to(self, l: Line) -> Line {
-        let (branch, ideal) = swMM_three(l.p1_, l.p2_, self.p1_);
+        let (branch, ideal) = sw_mm_three(l.p1_, l.p2_, self.p1_);
         return Line::from(branch, ideal);
     }
 }
@@ -249,7 +249,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, EulerAngles, IdealLine, Line, Plane, Point, Rotor};
+    use crate::{ApplyOp, EulerAngles, Line, Point, Rotor};
 
     #[test]
     fn rotor_line() {
@@ -298,13 +298,13 @@ mod tests {
         let ry = Rotor::rotor(1., 0., 1., 0.);
         let rz = Rotor::rotor(1., 0., 0., 1.);
 
-        let mut r: Rotor = rx * ry * rz;
+        let r: Rotor = rx * ry * rz;
         let ea = r.as_euler_angles();
         approx_eq(ea.roll, 1.);
         approx_eq(ea.pitch, 1.);
         approx_eq(ea.yaw, 1.);
 
-        let mut r2 = Rotor::from_euler_angles(&ea);
+        let r2 = Rotor::from_euler_angles(&ea);
 
         #[repr(align(16))]
         struct ArrayAlignedTo16ByteBoundary {mem: [f32; 8] };

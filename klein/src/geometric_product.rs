@@ -1,12 +1,9 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
-
 //use crate::detail::exp_log::{simd_exp};
 
-use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Motor, Plane, Point, Rotor, Translator};
+use crate::{Branch, Dual, Line, Motor, Plane, Point, Rotor, Translator};
 
 /// \defgroup gp Geometric Product
 ///
@@ -74,9 +71,9 @@ use crate::{Branch, Dual, IdealLine, Line, Motor, Plane, Point, Rotor, Translato
 ///     plane p3 = m(p2);
 ///     // p3 will be approximately equal to p1
 /// ```
-//use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four};
+//use crate::detail::sandwich::{sw02, sw_l2, sw32, sw012, sw_mm_three, sw312_four};
 use crate::detail::geometric_product::{
-    gp00, gp03_flip, gp03_noflip, gp11, gp12, gp33, gpLL, gpMM, gpRT, gpDL
+    gp00, gp03_flip, gp03_noflip, gp11, gp12, gp33, gp_ll, gp_mm, gp_rt, gp_dl
 };
 
 use std::ops::{Div, Mul};
@@ -119,7 +116,7 @@ impl Mul<Line> for Line {
     #[inline]
     fn mul(self, rhs: Line) -> Motor {
         let mut out = Motor::default();
-        gpLL(
+        gp_ll(
             self.p1_,
             self.p2_,
             rhs.p1_,
@@ -164,7 +161,7 @@ impl Mul<Line> for Dual {
     #[inline]
     fn mul(self, rhs: Line) -> Line {
         let mut out = Line::default();
-        gpDL(self.p, self.q, rhs.p1_, rhs.p2_, &mut out.p1_, &mut out.p2_);
+        gp_dl(self.p, self.q, rhs.p1_, rhs.p2_, &mut out.p1_, &mut out.p2_);
         return out
     }
 }
@@ -184,7 +181,7 @@ impl Mul<Translator> for Rotor {
     fn mul(self, rhs: Translator) -> Motor {
         let mut out = Motor::default();
         out.p1_ = self.p1_;
-        out.p2_ = gpRT(false, self.p1_, rhs.p2_);
+        out.p2_ = gp_rt(false, self.p1_, rhs.p2_);
         return out
     }
 }
@@ -196,7 +193,7 @@ impl Mul<Rotor> for Translator {
     fn mul(self, rhs: Rotor) -> Motor {
         let mut out = Motor::default();
         out.p1_ = rhs.p1_;
-        out.p2_ = gpRT(true, rhs.p1_, self.p2_);
+        out.p2_ = gp_rt(true, rhs.p1_, self.p2_);
         //out.p2_ = gp12(false, self.p1_, rhs.p2_);
         return out;
     }
@@ -253,7 +250,7 @@ impl Mul<Motor> for Translator {
     fn mul(self, rhs: Motor) -> Motor {
         let mut out = Motor::default();
         out.p1_ = rhs.p1_;
-        out.p2_ = gpRT(true, rhs.p1_, self.p2_);
+        out.p2_ = gp_rt(true, rhs.p1_, self.p2_);
         unsafe {
             out.p2_ = _mm_add_ps(out.p2_, rhs.p2_);
         }
@@ -268,7 +265,7 @@ impl Mul<Translator> for Motor {
     fn mul(self, rhs: Translator) -> Motor {
         let mut out = Motor::default();
         out.p1_ = self.p1_;
-        out.p2_ = gpRT(false, self.p1_, rhs.p2_);
+        out.p2_ = gp_rt(false, self.p1_, rhs.p2_);
         unsafe {
             out.p2_ = _mm_add_ps(out.p2_, self.p2_);
         }
@@ -282,7 +279,7 @@ impl Mul<Motor> for Motor {
     #[inline]
     fn mul(self, rhs: Motor) -> Motor {
         let mut out = Motor::default();
-        gpMM(
+        gp_mm(
             self.p1_,
             self.p2_,
             rhs.p1_,
@@ -297,7 +294,7 @@ impl Mul<Motor> for Motor {
 // [[nodiscard]] inline motor KLN_VEC_CALL operator*(motor a, motor b) noexcept
 // {
 //     motor out;
-//     detail::gpMM(a.p1_, b.p1_, &out.p1_);
+//     detail::gp_mm(a.p1_, b.p1_, &out.p1_);
 //     return out;
 // }
 
@@ -377,7 +374,7 @@ mod tests {
     }
 
     use crate::{
-        ApplyOp, Branch, EulerAngles, IdealLine, Line, Motor, Plane, Point, Rotor, Translator,
+        ApplyOp, Branch, Line, Motor, Plane, Point, Rotor, Translator,
     };
 
     #[test]

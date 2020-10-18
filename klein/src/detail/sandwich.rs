@@ -3,7 +3,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{hi_dp, hi_dp_ss, rcp_nr1}; //, hi_dp, hi_dp_bc, rsqrt_nr1};
+use crate::detail::sse::{hi_dp, rcp_nr1}; // hi_dp_ss, hi_dp_bc, rsqrt_nr1};
 
 /// File: sandwich.hpp
 /// Purpose: Define functions of the form swAB where A and B are partition
@@ -221,7 +221,7 @@ pub fn sw02(a: __m128, b: __m128) -> __m128 {
 // d := p2 input
 // c := p2 translator
 #[inline]
-pub fn swL2(a: __m128, d: __m128, c: __m128) -> __m128 {
+pub fn sw_l2(a: __m128, d: __m128, c: __m128) -> __m128 {
     // a0 +
     // a1 e23 +
     // a2 e31 +
@@ -288,7 +288,7 @@ pub fn sw32(a: __m128, b: __m128) -> __m128 {
 //
 // Note: inp and out are permitted to alias iff a == out.
 #[inline]
-pub fn swMMRotation(b: __m128) -> (__m128, __m128, __m128) {
+pub fn sw_mm_rotation(b: __m128) -> (__m128, __m128, __m128) {
     // p1 block
     // a0(b0^2 + b1^2 + b2^2 + b3^2) +
     // (a1(b1^2 + b0^2 - b3^2 - b2^2) +
@@ -362,7 +362,7 @@ pub fn swMMRotation(b: __m128) -> (__m128, __m128, __m128) {
 }
 
 #[inline]
-pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
+pub fn sw_mm_translation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
     unsafe {
         let b_xwyz = _mm_shuffle_ps(b, b, 156 /* 2, 1, 3, 0 */);
         let b_xzwy = _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */);
@@ -415,25 +415,20 @@ pub fn swMMTranslation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
 use crate::Line;
 
 #[inline]
-pub fn swMM_seven(
-	translate: bool, InputP2: bool,
+pub fn sw_mm_seven(
+	translate: bool, input_p2: bool,
 	inp: &[Line], b: __m128, c: __m128,
 	res: &mut [Line], count:usize) {
-	let (tmp1, tmp2, tmp3) = swMMRotation(b);
+	let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
 
     unsafe{
 
     	let (mut tmp4, mut tmp5, mut tmp6) = (_mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps());
         if translate {
-            let (ttmp4, ttmp5, ttmp6) = swMMTranslation(b, c);
+            let (ttmp4, ttmp5, ttmp6) = sw_mm_translation(b, c);
             tmp4 = ttmp4;
             tmp5 = ttmp5;
             tmp6 = ttmp6;
-        }
-
-        let mut stride = 1;
-        if InputP2 {
-            stride = 2;
         }
 
     	for i in 0..count {
@@ -441,13 +436,11 @@ pub fn swMM_seven(
     		let p1_in_xzwy = _mm_shuffle_ps(p1_in,p1_in, 120 /* 1, 3, 2, 0 */);
     		let p1_in_xwyz = _mm_shuffle_ps(p1_in,p1_in, 156 /* 2, 1, 3, 0 */);
 
-    		// ref __m128 p1_out = ref res[stride * i];
-
     		res[i].p1_ = _mm_mul_ps(tmp1, p1_in);
     		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp2, p1_in_xzwy));
     		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp3, p1_in_xwyz));
 
-    		if InputP2 {
+    		if input_p2 {
     			let p2_in = inp[i].p2_; // d
     			// let res[2*i + 1] = ref res[2 * i + 1];
     			res[i].p2_ = _mm_mul_ps(tmp1, p2_in);
@@ -461,7 +454,6 @@ pub fn swMM_seven(
     		// components of the line are left untouched
     		if translate
     		{
-    			//ref __m128 res[i].p2_ = ref res[2 * i + 1];
     			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp4, p1_in));
     			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp5, p1_in_xwyz));
     			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp6, p1_in_xzwy));
@@ -471,10 +463,10 @@ pub fn swMM_seven(
 }
 
 #[inline]
-pub fn swMM_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, __m128) {
+pub fn sw_mm_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, __m128) {
     unsafe {
-        let (tmp1, tmp2, tmp3) = swMMRotation(b);
-        let (tmp4, tmp5, tmp6) = swMMTranslation(b, c);
+        let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
+        let (tmp4, tmp5, tmp6) = sw_mm_translation(b, c);
 
         let p1_in_xzwy = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
         let p1_in_xwyz = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
@@ -503,9 +495,9 @@ pub fn swMM_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, _
 }
 
 #[inline]
-pub fn swMM_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
+pub fn sw_mm_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
     unsafe {
-        let (tmp1, tmp2, tmp3) = swMMRotation(b);
+        let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
 
         let p1_in_xzwy: __m128 = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
         let p1_in_xwyz: __m128 = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
@@ -529,8 +521,8 @@ pub fn swMM_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
 }
 
 #[inline]
-pub fn swMM_two(inp1: __m128, b: __m128) -> __m128{
-	let (tmp1, tmp2, tmp3) = swMMRotation(b);
+pub fn sw_mm_two(inp1: __m128, b: __m128) -> __m128{
+	let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
 
     unsafe{
 
@@ -552,7 +544,7 @@ pub fn swMM_two(inp1: __m128, b: __m128) -> __m128{
 // If Variadic is true, a and out must point to a contiguous block of memory
 // equivalent to __m128[count]
 #[inline]
-pub fn sw012Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
+pub fn sw012_common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
     // LSB
     //
     // (2a3(b0 c3 + b1 c2 + b3 c0 - b2 c1) +
@@ -659,7 +651,7 @@ use crate::Plane;
 
 #[inline]
 pub fn sw012_six(translate:bool, a: &[Plane], b: __m128, c: __m128, res: &mut [Plane], count: usize) {
-	let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
+	let (tmp1, tmp2, tmp3, tmp4) = sw012_common(translate, b, c);
 
 	// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
 	// dependence on b and c.
@@ -681,7 +673,7 @@ pub fn sw012_six(translate:bool, a: &[Plane], b: __m128, c: __m128, res: &mut [P
 
 #[inline]
 pub fn sw012(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
-    let (tmp1, tmp2, tmp3, tmp4) = sw012Common(translate, b, c);
+    let (tmp1, tmp2, tmp3, tmp4) = sw012_common(translate, b, c);
 
     unsafe {
         // The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a dependence on b and c.
@@ -704,7 +696,7 @@ pub fn sw012(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
 
 // Apply a motor to a point
 #[inline]
-pub fn sw312Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
+pub fn sw312_common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __m128, __m128) {
     // LSB
     // a0(b1^2 + b0^2 + b2^2 + b3^2) e123 +
     //
@@ -783,7 +775,7 @@ use crate::Point;
 #[inline]
 pub fn sw312_six(translate:bool, a: &[Point], b: __m128, c: __m128, res: &mut [Point], count: usize)
 {
-	let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
+	let (tmp1, tmp2, tmp3, tmp4) = sw312_common(translate, b, c);
 
 	for i in 0..count {
 		//ref __m128 p = ref res[i];
@@ -805,7 +797,7 @@ pub fn sw312_six(translate:bool, a: &[Point], b: __m128, c: __m128, res: &mut [P
 #[inline]
 pub fn sw312_four(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
     unsafe {
-        let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
+        let (tmp1, tmp2, tmp3, tmp4) = sw312_common(translate, b, c);
 
         let mut p = _mm_mul_ps(tmp1, _mm_shuffle_ps(a, a, 156 /* 2, 1, 3, 0 */));
         p = _mm_add_ps(

@@ -1,14 +1,14 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three, sw012_six, swMM_seven, sw312_six};
+use crate::detail::sandwich::{sw012, sw312_four, sw_mm_four, sw012_six, sw_mm_seven, sw312_six};
 use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
 use crate::detail::exp_log::simd_exp;
-use crate::detail::geometric_product::gpDL;
+use crate::detail::geometric_product::gp_dl;
 
 use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Plane, Point, Rotor, Translator, ApplyToMany};
+use crate::{Line, Plane, Point, Rotor, Translator, ApplyToMany};
 
 /// \defgroup motor Motors
 ///
@@ -114,7 +114,7 @@ impl Motor {
     pub fn screw(ang_rad: f32, d: f32, l: Line) -> Motor {
         let mut log_m = Line::default();
         let mut out = Motor::default();
-        gpDL(
+        gp_dl(
             -ang_rad * 0.5,
             d * 0.5,
             l.p1_,
@@ -490,6 +490,31 @@ mul_scalar_by_motor!(f32);
 mul_scalar_by_motor!(f64);
 mul_scalar_by_motor!(i32);
 
+
+
+// /// Convert this motor to a 3x4 column-major matrix representing this
+// /// motor's action as a linear transformation. The motor must be normalized
+// /// for this conversion to produce well-defined results, but is more
+// /// efficient than a 4x4 matrix conversion.
+// [[nodiscard]] mat3x4 as_mat3x4() const noexcept
+// {
+//     mat3x4 out;
+//     mat4x4_12<true, true>(p1_, &p2_, out.cols);
+//     return out;
+// }
+
+// /// Convert this motor to a 4x4 column-major matrix representing this
+// /// motor's action as a linear transformation.
+// [[nodiscard]] mat4x4 as_mat4x4() const noexcept
+// {
+//     mat4x4 out;
+//     mat4x4_12<true, false>(p1_, &p2_, out.cols);
+//     return out;
+// }
+
+
+
+
 impl PartialEq for Motor {
     fn eq(&self, other: &Motor) -> bool {
         unsafe {
@@ -502,12 +527,10 @@ impl PartialEq for Motor {
 }
 
 impl ApplyOp<Plane> for Motor {
+    /// Conjugates a plane $p$ with this motor and returns the result
+    /// $mp\widetilde{m}$
     fn apply_to(self, p: Plane) -> Plane {
-        /// Conjugates a plane $p$ with this motor and returns the result
-        /// $mp\widetilde{m}$.
-        unsafe {
-            return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
-        }
+        return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
     }
 }
 
@@ -540,7 +563,7 @@ impl ApplyOp<Point> for Motor {
     /// Conjugates a point $p$ with this motor and returns the result
     /// $mp\widetilde{m}$.
     fn apply_to(self, p: Point) -> Point {
-        unsafe { return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_)) }
+        return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))
     }
 }
 
@@ -548,7 +571,7 @@ impl ApplyOp<Point> for Motor {
 /// $m\ell \widetilde{m}$.
 impl ApplyOp<Line> for Motor {
     fn apply_to(self, rhs: Line) -> Line {
-        let (branch, ideal) = swMM_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
+        let (branch, ideal) = sw_mm_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
         return Line::from(branch, ideal);
     }
 }
@@ -583,20 +606,19 @@ impl ApplyToMany<Point> for Motor {
 /// each line individually.
 impl ApplyToMany<Line> for Motor {
     fn apply_to_many(self, input: &[Line], output: &mut [Line], count: usize) {
-        swMM_seven(true, true, &input, self.p1_, self.p2_, output, count);
+        sw_mm_seven(true, true, &input, self.p1_, self.p2_, output, count);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
+    #![cfg(target_arch = "x86_64")]
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, EulerAngles, IdealLine, Line, Motor, Plane, Point, Rotor, Translator};
+    use crate::{ApplyOp, Line, Motor, Plane, Point, Rotor, Translator};
 
     #[test]
     fn motor_plane() {

@@ -73,21 +73,6 @@ impl From<&f32> for Plane {
     }
 }
 
-/// Unaligned load of data. The `data` argument should point to 4 floats
-/// corresponding to the
-/// `(d, a, b, c)` components of the plane multivector where `d` occupies
-/// the lowest address in memory.
-///
-/// !!! tip
-///
-/// This is a faster mechanism for setting data compared to setting
-///     components one at a time.
-pub fn load(data: &f32) -> Plane {
-    Plane {
-        p0_: unsafe { _mm_loadu_ps(data) },
-    }
-}
-
 impl Plane {
     /// Normalize this plane $p$ such that $p \cdot p = 1$.
     ///
@@ -107,6 +92,21 @@ impl Plane {
                 inv_norm = _mm_add_ps(inv_norm, _mm_set_ss(1.0));
             }
             self.p0_ = _mm_mul_ps(inv_norm, self.p0_);
+        }
+    }
+    
+    /// Unaligned load of data. The `data` argument should point to 4 floats
+    /// corresponding to the
+    /// `(d, a, b, c)` components of the plane multivector where `d` occupies
+    /// the lowest address in memory.
+    ///
+    /// !!! tip
+    ///
+    /// This is a faster mechanism for setting data compared to setting
+    ///     components one at a time.
+    pub fn load(data: &f32) -> Plane {
+        Plane {
+            p0_: unsafe { _mm_loadu_ps(data) },
         }
     }
 
@@ -265,15 +265,14 @@ impl Plane {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
+    #![cfg(target_arch = "x86_64")]
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }
 
     use crate::plane::ApplyOp;
-    use crate::{IdealLine, Line, Plane, Point};
+    use crate::{Line, Plane, Point};
 
     #[test]
     fn reflect_plane() {

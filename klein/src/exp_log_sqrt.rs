@@ -1,14 +1,12 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, hi_dp, rcp_nr1, rsqrt_nr1, sqrt_nr1}; // hi_dp, hi_dp_bc, };
-                                                                      // use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four};
+use crate::detail::sse::{hi_dp, rcp_nr1, sqrt_nr1};
 
 use crate::detail::exp_log::{simd_exp, simd_log};
-// use crate::detail::geometric_product::{gpDL};
+// use crate::detail::geometric_product::{gp_dl};
 
-use crate::util::ApplyOp;
-use crate::{Branch, Dual, IdealLine, Line, Motor, Plane, Point, Rotor, Translator};
+use crate::{Branch, IdealLine, Line, Motor, Rotor, Translator};
 
 /// \defgroup exp_log Exponential and Logarithm
 /// @{
@@ -175,7 +173,7 @@ impl Motor {
     #[inline]
     pub fn sqrt(self) -> Motor {
         unsafe {
-            let mut m =
+            let m =
                 Motor::from_rotor_and_translator(_mm_add_ss(self.p1_, _mm_set_ss(1.)), self.p2_);
             m.normalized_motor()
 //            return m
@@ -185,15 +183,13 @@ impl Motor {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
+    #![cfg(target_arch = "x86_64")]
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{
-        ApplyOp, Branch, EulerAngles, IdealLine, Line, Motor, Plane, Point, Rotor, Translator,
+    use crate::{Branch, Line, Motor, Rotor, Translator,
     };
 
     #[test]

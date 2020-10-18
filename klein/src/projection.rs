@@ -26,7 +26,6 @@ use crate::{Line, Plane, Point};
 /// below.
 
 trait Project<O> {
-    #[inline]
     fn project(self, other: O) -> Self;
 }
 
@@ -43,10 +42,8 @@ macro_rules! project_onto_lower_grade {
 
 project_onto_lower_grade!(Point, Line);
 
-/// Project a point onto a plane
 project_onto_lower_grade!(Point, Plane);
 
-/// Project a line onto a plane
 project_onto_lower_grade!(Line, Plane);
 
 /// Project a plane onto a point. Given a plane $p$ and point $P$, produces the
@@ -57,6 +54,16 @@ project_onto_lower_grade!(Line, Plane);
 /// selects the line perpendicular to $p$ through $P$. Subsequently, taking the
 /// inner product with $P$ again selects the plane from the plane pencil of $P$
 /// _least like_ that line.
+
+/// Project a line onto a point. Given a line $\ell$ and point $P$, produces the
+/// line through $P$ that is parallel to $\ell$.
+
+/// Project a plane onto a line. Given a plane $p$ and line $\ell$, produces the
+/// plane through $\ell$ that is parallel to $p$ if $p \parallel \ell$.
+///
+/// If $p \nparallel \ell$, the result will be the plane $p'$ containing $\ell$
+/// that maximizes $p \cdot p'$ (that is, $p'$ is as parallel to $p$ as
+/// possible).
 
 macro_rules! project_onto_higher_grade {
     ( $a:ty, $b:ty ) => {
@@ -71,14 +78,6 @@ macro_rules! project_onto_higher_grade {
 
 project_onto_higher_grade!(Plane, Point);
 
-/// Project a line onto a point. Given a line $\ell$ and point $P$, produces the
-/// line through $P$ that is parallel to $\ell$.
 project_onto_higher_grade!(Line, Point);
 
-/// Project a plane onto a line. Given a plane $p$ and line $\ell$, produces the
-/// plane through $\ell$ that is parallel to $p$ if $p \parallel \ell$.
-///
-/// If $p \nparallel \ell$, the result will be the plane $p'$ containing $\ell$
-/// that maximizes $p \cdot p'$ (that is, $p'$ is as parallel to $p$ as
-/// possible).
 project_onto_higher_grade!(Plane, Line);

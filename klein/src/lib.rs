@@ -5,7 +5,7 @@ mod geometric_product;
 mod inner_product;
 mod join;
 mod line;
-mod mat4x4;
+mod matrices;
 mod meet;
 mod motor;
 mod plane;

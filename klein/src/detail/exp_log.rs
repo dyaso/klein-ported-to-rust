@@ -1,7 +1,7 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{hi_dp, hi_dp_bc, hi_dp_ss, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{hi_dp_bc, rcp_nr1, rsqrt_nr1};//hi_dp, hi_dp_ss
 
 // Partition memory layouts
 //     LSB --> MSB
@@ -164,8 +164,8 @@ pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128
         // s_scalar = sinu
         // t_scalar = v cosu
 
-        let mut u: f32 = 0.;
-        let mut v: f32 = 0.;
+        let u: f32;
+        let v: f32;
         let p_zero: bool = f32::abs(p) < 1e-6;
         if p_zero {
             u = f32::atan2(-q, t_scalar);
@@ -180,7 +180,7 @@ pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128
         // Now, (u + v e0123) * n when exponentiated will give us the motor, so
         // (u + v e0123) * n is the logarithm. To proceed, we need to compute
         // the normalized bivector.
-        let mut norm_real = _mm_mul_ps(a, a2_sqrt_rcp);
+        let norm_real = _mm_mul_ps(a, a2_sqrt_rcp);
         let mut norm_ideal = _mm_mul_ps(b, a2_sqrt_rcp);
         norm_ideal = _mm_sub_ps(
             norm_ideal,

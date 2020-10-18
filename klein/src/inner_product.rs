@@ -1,12 +1,11 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use crate::detail::inner_product::{
-    dot00, dot03, dot11, dot33, dotPIL_flip, dotPIL_noflip, dotPL_flip, dotPL_noflip, dotPTL,
+    dot00, dot03, dot11, dot33, dot_pil_flip, dot_pil_noflip, dot_pl_flip, dot_pl_noflip, dot_ptl,
 };
-use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
 
-use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
+use crate::{IdealLine, Line, Plane, Point};
 
 use std::ops::BitOr;
 
@@ -62,7 +61,7 @@ impl BitOr<Line> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-        return Plane::from(dotPL_noflip(self.p0_, rhs.p1_, rhs.p2_));
+        return Plane::from(dot_pl_noflip(self.p0_, rhs.p1_, rhs.p2_));
     }
 }
 
@@ -70,7 +69,7 @@ impl BitOr<Plane> for Line {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-        return Plane::from(dotPL_flip(rhs.p0_, self.p1_, self.p2_));
+        return Plane::from(dot_pl_flip(rhs.p0_, self.p1_, self.p2_));
     }
 }
 
@@ -78,7 +77,7 @@ impl BitOr<IdealLine> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: IdealLine) -> Self::Output {
-        return Plane::from(dotPIL_noflip(self.p0_, rhs.p2_));
+        return Plane::from(dot_pil_noflip(self.p0_, rhs.p2_));
     }
 }
 
@@ -86,7 +85,7 @@ impl BitOr<Plane> for IdealLine {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-        return Plane::from(dotPIL_flip(rhs.p0_, self.p2_));
+        return Plane::from(dot_pil_flip(rhs.p0_, self.p2_));
     }
 }
 
@@ -124,7 +123,7 @@ impl BitOr<Line> for Point {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-        return Plane::from(dotPTL(self.p3_, rhs.p1_));
+        return Plane::from(dot_ptl(self.p3_, rhs.p1_));
     }
 }
 
@@ -149,7 +148,6 @@ impl BitOr<Point> for Point {
 #[cfg(test)]
 mod tests {
     #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)

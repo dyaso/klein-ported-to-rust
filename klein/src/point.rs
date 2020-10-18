@@ -1,7 +1,8 @@
+#![cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
 use crate::detail::sse::{rcp_nr1,hi_dp_bc,rsqrt_nr1};
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 
 pub type Element = __m128;
 
@@ -68,12 +69,6 @@ impl Point {
 
     /// Component-wise constructor (homogeneous coordinate is automatically
     /// initialized to 1)
-    // pub fn new(x: f32, y: f32, z: f32) -> Point {
-    //     Point {
-    //         p3_: unsafe { _mm_set_ps(z, y, x, 1.0) },
-    //     }
-    // }
-
     pub fn new(x: f32, y: f32, z: f32) -> Point {
         Point {
             p3_: unsafe { _mm_set_ps(z, y, x, 1.0) },
@@ -167,7 +162,7 @@ impl Point {
     }
 }
 
-use std::ops::{AddAssign, SubAssign};
+use std::ops::{AddAssign, SubAssign, DivAssign, MulAssign};
 
 impl AddAssign for Point {
     #[inline]
@@ -187,8 +182,27 @@ impl SubAssign for Point {
     }
 }
 
+/// Point uniform inverse scale
+impl DivAssign<f32> for Point {
+    #[inline]
+    fn div_assign(&mut self, s: f32) {
+        unsafe {
+            self.p3_ = _mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s)));
+        }
+    }
+}
 
-use std::ops::Add;
+/// Point uniform scale
+impl MulAssign<f32> for Point {
+    #[inline]
+    fn mul_assign(&mut self, s: f32) {
+        unsafe {
+            self.p3_ = _mm_mul_ps(self.p3_, _mm_set1_ps(s));            
+        }
+    }
+}
+
+use std::ops::{Add, Sub, Mul, Div};
 
 impl Add for Point {
     type Output = Point;
@@ -198,8 +212,6 @@ impl Add for Point {
     }
 }
 
-use std::ops::Sub;
-
 /// Point subtraction
 impl Sub for Point {
     type Output = Point;
@@ -208,15 +220,13 @@ impl Sub for Point {
         unsafe { Point::from(_mm_sub_ps(self.p3_, rhs.p3_)) }
     }
 }
-
-use std::ops::Mul;
 /// Point uniform scale
-impl Mul<f32> for Point {
+impl<T: Into<f32>> Mul<T> for Point {
     type Output = Point;
     #[inline]
-    fn mul(self, s: f32) -> Self {
+    fn mul(self, s: T) -> Self {
         unsafe {
-            let c = Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s)));
+            let c = Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s.into())));
             return c;
         }
     }
@@ -229,8 +239,6 @@ impl Mul<Point> for f32 {
         return p * self;
     }
 }
-
-use std::ops::Div;
 /// Point uniform inverse scale
 impl Div<f32> for Point {
     type Output = Point;
@@ -255,9 +263,8 @@ impl Neg for Point {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
-
+    #![cfg(target_arch = "x86_64")]
+    
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }

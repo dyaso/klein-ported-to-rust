@@ -8,9 +8,9 @@ pub trait ApplyToMany<O> {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
+    #![cfg(target_arch = "x86_64")]
 
+    #[allow(dead_code)]
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }

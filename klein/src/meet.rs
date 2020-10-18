@@ -1,8 +1,9 @@
-use crate::detail::exterior_product::{ext00, ext02, ext03_false, ext03_true, extPB};
+#![cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
+use crate::detail::exterior_product::{ext00, ext02, ext03_false, ext03_true, ext_pb};
 use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
 
 use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 //use crate::plane::Plane;
@@ -53,7 +54,7 @@ impl BitXor<Branch> for Plane {
     #[inline]
     fn bitxor(self, rhs: Branch) -> Self::Output {
         let mut out = Point::default();
-        out.p3_ = extPB(self.p0_, rhs.p1_);
+        out.p3_ = ext_pb(self.p0_, rhs.p1_);
         return out;
     }
 }
@@ -70,14 +71,12 @@ impl BitXor<Line> for Plane {
     #[inline]
     fn bitxor(self, rhs: Line) -> Self::Output {
         let mut out = Point::default();
-        out.p3_ = extPB(self.p0_, rhs.p1_);
-        let mut tmp: __m128;
-        // __m128 tmp;
+        out.p3_ = ext_pb(self.p0_, rhs.p1_);
         let tmp = ext02(self.p0_, rhs.p2_);
         unsafe {
             out.p3_ = _mm_add_ps(tmp, out.p3_);
         }
-        return out;
+        return out
     }
 }
 impl BitXor<Plane> for Line {
@@ -203,9 +202,9 @@ impl BitXor<Line> for Branch {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
-    use std::arch::x86_64::*;
+    #![cfg(target_arch = "x86_64")]
 
+    #[allow(dead_code)]
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }

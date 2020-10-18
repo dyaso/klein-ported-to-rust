@@ -23,7 +23,7 @@ pub struct IdealLine {
 
 impl From<__m128> for IdealLine {
     fn from(xmm: __m128) -> Self {
-        unsafe { IdealLine { p2_: xmm } }
+        IdealLine { p2_: xmm }
     }
 }
 
@@ -334,7 +334,7 @@ impl Branch {
 
     pub fn normalize(&mut self) {
         unsafe {
-            let mut inv_norm = _mm_setzero_ps();
+            let inv_norm: __m128;
 
             if self.scalar() == 0. {
                 // it's a Branch
@@ -445,6 +445,7 @@ impl Sub for Branch {
 }
 
 /// Branch uniform scale
+
 impl Mul<f32> for Branch {
     type Output = Branch;
     #[inline]

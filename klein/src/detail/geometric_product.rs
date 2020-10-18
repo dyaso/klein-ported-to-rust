@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp, hi_dp, hi_dp_bc, hi_dp_ss, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{dp, rcp_nr1};//hi_dp, hi_dp_bc, hi_dp_ss, rsqrt_nr1
 
 // Purpose: Define functions of the form gpAB where A and B are partition
 // indices. Each function so-defined computes the geometric product using vector
@@ -152,7 +152,7 @@ pub fn gp03_noflip(a: __m128, b: __m128, p1: &mut __m128, p2: &mut __m128) {
 }
 
 #[inline]
-pub fn gp11(a: __m128, b: __m128, p1Out: &mut __m128) {
+pub fn gp11(a: __m128, b: __m128, p1_out: &mut __m128) {
     // (a0 b0 - a1 b1 - a2 b2 - a3 b3) +
     // (a0 b1 - a2 b3 + a1 b0 + a3 b2)*e23
     // (a0 b2 - a3 b1 + a2 b0 + a1 b3)*e31
@@ -163,10 +163,10 @@ pub fn gp11(a: __m128, b: __m128, p1Out: &mut __m128) {
 
     // In general, we can get rid of at most one swizzle
     unsafe {
-        *p1Out = _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /*0, 0, 0, 0*/), b);
+        *p1_out = _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /*0, 0, 0, 0*/), b);
 
-        *p1Out = _mm_sub_ps(
-            *p1Out,
+        *p1_out = _mm_sub_ps(
+            *p1_out,
             _mm_mul_ps(
                 _mm_shuffle_ps(a, a, 121 /* 1, 3, 2, 1 */),
                 _mm_shuffle_ps(b, b, 157 /* 2, 1, 3, 1 */),
@@ -187,7 +187,7 @@ pub fn gp11(a: __m128, b: __m128, p1Out: &mut __m128) {
 
         let tmp = _mm_xor_ps(_mm_add_ps(tmp1, tmp2), _mm_set_ss(-0.));
 
-        *p1Out = _mm_add_ps(*p1Out, tmp);
+        *p1_out = _mm_add_ps(*p1_out, tmp);
     }
 }
 
@@ -221,9 +221,9 @@ pub fn gp33(a: __m128, b: __m128) -> __m128 {
 
 // [MethodImpl(MethodImplOptions.AggressiveInlining)]
 
-// public static void gpDL(float u, float v, __m128 b, __m128 c, out __m128 p1, out __m128 p2)
+// public static void gp_dl(float u, float v, __m128 b, __m128 c, out __m128 p1, out __m128 p2)
 #[inline]
-pub fn gpDL(u: f32, v: f32, b: __m128, c: __m128, p1: &mut __m128, p2: &mut __m128) {
+pub fn gp_dl(u: f32, v: f32, b: __m128, c: __m128, p1: &mut __m128, p2: &mut __m128) {
     // b1 u e23 +
     // b2 u e31 +
     // b3 u e12 +
@@ -240,9 +240,9 @@ pub fn gpDL(u: f32, v: f32, b: __m128, c: __m128, p1: &mut __m128, p2: &mut __m1
 }
 
 #[inline]
-pub fn gpRT(flip: bool, a: __m128, b: __m128) -> __m128 {
+pub fn gp_rt(flip: bool, a: __m128, b: __m128) -> __m128 {
     unsafe {
-        let mut p2 = _mm_setzero_ps();
+        let mut p2;
 
         if flip {
             // (a1 b1 + a2 b2 + a3 b3) e0123 +
@@ -307,7 +307,7 @@ pub fn gpRT(flip: bool, a: __m128, b: __m128) -> __m128 {
 #[inline]
 pub fn gp12(flip: bool, a: __m128, b: __m128) -> __m128 {
     unsafe {
-        let mut p2 = gpRT(flip, a, b);
+        let mut p2 = gp_rt(flip, a, b);
         p2 = _mm_sub_ps(
             p2,
             _mm_xor_ps(
@@ -325,7 +325,7 @@ pub fn gp12(flip: bool, a: __m128, b: __m128) -> __m128 {
 /// (b,c) = second line P1, P2
 /// </summary>
 #[inline]
-pub fn gpLL(a: __m128, d: __m128, b: __m128, c: __m128, p1: &mut __m128, p2: &mut __m128) {
+pub fn gp_ll(a: __m128, d: __m128, b: __m128, c: __m128, p1: &mut __m128, p2: &mut __m128) {
     // (-a1 b1 - a3 b3 - a2 b2) +
     // (a2 b1 - a1 b2) e12 +
     // (a1 b3 - a3 b1) e31 +
@@ -393,7 +393,7 @@ pub fn gpLL(a: __m128, d: __m128, b: __m128, c: __m128, p1: &mut __m128, p2: &mu
 
 // Optimized motor * motor operation
 #[inline]
-pub fn gpMM(a: __m128, b: __m128, c: __m128, d: __m128, e: &mut __m128, f: &mut __m128) {
+pub fn gp_mm(a: __m128, b: __m128, c: __m128, d: __m128, e: &mut __m128, f: &mut __m128) {
     unsafe {
         // (a0 c0 - a1 c1 - a2 c2 - a3 c3) +
         // (a0 c1 + a3 c2 + a1 c0 - a2 c3) e23 +
