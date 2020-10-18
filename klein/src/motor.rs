@@ -1,7 +1,7 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three, sw012_six, swMM_seven};
+use crate::detail::sandwich::{sw012, sw02, sw312_four, sw32, swL2, swMM_four, swMM_three, sw012_six, swMM_seven, sw312_six};
 use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
 use crate::detail::exp_log::simd_exp;
@@ -379,6 +379,117 @@ impl Neg for Motor {
     }
 }
 
+use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
+
+/// Motor addition
+impl AddAssign for Motor {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p1_ = _mm_add_ps(self.p1_, rhs.p1_);
+            self.p2_ = _mm_add_ps(self.p2_, rhs.p2_);
+        }
+    }
+}
+
+/// Motor subtraction
+impl SubAssign for Motor {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p1_ = _mm_sub_ps(self.p1_, rhs.p1_);
+            self.p2_ = _mm_sub_ps(self.p2_, rhs.p2_);
+        }
+    }
+}
+
+/// Motor uniform scale
+impl<T: Into<f32>> MulAssign<T> for Motor {
+//impl MulAssign<f32> for Motor {
+    #[inline]
+    fn mul_assign(&mut self, s: T) {
+        unsafe {
+            let vs: __m128 = _mm_set1_ps(s.into());
+            self.p1_ = _mm_mul_ps(self.p1_, vs);
+            self.p2_ = _mm_mul_ps(self.p2_, vs);
+        }
+    }
+}
+
+ /// Motor uniform inverse scale
+impl<T: Into<f32>> DivAssign<T> for Motor {
+    #[inline]
+    fn div_assign(&mut self, s: T) {
+        unsafe {
+            let vs: __m128 = rcp_nr1(_mm_set1_ps(s.into()));
+               self.p1_ = _mm_mul_ps(self.p1_, vs);
+            self.p2_ = _mm_mul_ps(self.p2_, vs);
+        }
+    }
+}
+
+use std::ops::{Add, Sub, Mul, Div};
+
+impl Add for Motor {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        unsafe { Motor::from_rotor_and_translator
+                    (_mm_add_ps(self.p1_, rhs.p1_), 
+                        _mm_add_ps(self.p2_, rhs.p2_)) }
+    }
+}
+
+impl Sub for Motor {
+    type Output = Self;
+    #[inline]
+    fn sub(self, rhs: Self) -> Self {
+        unsafe { Motor::from_rotor_and_translator(_mm_sub_ps(self.p1_, rhs.p1_), 
+            _mm_sub_ps(self.p2_, rhs.p2_)) }
+    }
+}
+
+impl<T: Into<f32>> Mul<T> for Motor {
+    type Output = Self;
+    #[inline]
+    fn mul(self, s: T) -> Self {
+        unsafe {
+            let vs: __m128 = _mm_set1_ps(s.into());
+            Motor::from_rotor_and_translator(_mm_mul_ps(self.p1_, vs), _mm_mul_ps(self.p2_, vs))
+        }
+    }
+}
+
+/// Motor uniform inverse scale
+impl<T: Into<f32>> Div<T> for Motor {
+    type Output = Self;
+    #[inline]
+    fn div(self, s: T) -> Self {
+        unsafe {
+            let vs = rcp_nr1(_mm_set1_ps(s.into()));
+            Motor::from_rotor_and_translator(
+                _mm_mul_ps(self.p1_, vs),
+                _mm_mul_ps(self.p2_, vs))
+        }
+    }
+}
+
+macro_rules! mul_scalar_by_motor {
+    ($s:ty) => {
+        impl Mul<Motor> for $s {
+            type Output = Motor;
+            #[inline]
+            fn mul(self, l: Motor) -> Motor {
+                return l * (self as f32);
+            }
+        }
+    };
+}
+
+mul_scalar_by_motor!(f32);
+mul_scalar_by_motor!(f64);
+mul_scalar_by_motor!(i32);
+
 impl PartialEq for Motor {
     fn eq(&self, other: &Motor) -> bool {
         unsafe {
@@ -422,9 +533,6 @@ impl ApplyOp<Plane> for Motor {
 impl ApplyToMany<Plane> for Motor {
     fn apply_to_many(self, input: &[Plane], output: &mut [Plane], count: usize) {
         sw012_six(true, &input, self.p1_, self.p2_, output, count);
-        // unsafe {
-        //     return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
-        // }
     }
 }
 
@@ -445,15 +553,34 @@ impl ApplyOp<Line> for Motor {
     }
 }
 
-    /// Conjugates an array of lines with this motor in the input array and
-    /// stores the result in the output array. Aliasing is only permitted when
-    /// `in == out` (in place motor application).
-    ///
-    /// !!! tip
-    ///
-    /// When applying a motor to a list of tightly packed lines, this
-    /// routine will be *significantly faster* than applying the motor to
-    /// each line individually.
+/// Conjugates an array of points with this motor in the input array and
+/// stores the result in the output array. Aliasing is only permitted when
+/// `in == out` (in place motor application).
+///
+/// !!! tip
+///
+/// When applying a motor to a list of tightly packed points, this
+/// routine will be *significantly faster* than applying the motor to
+/// each point individually.
+impl ApplyToMany<Point> for Motor {
+    fn apply_to_many(self, input: &[Point], output: &mut [Point], count: usize) {
+        sw312_six(true, &input, self.p1_, self.p2_, output, count);
+        
+        // unsafe {
+        //     return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
+        // }
+    }
+}
+
+/// Conjugates an array of lines with this motor in the input array and
+/// stores the result in the output array. Aliasing is only permitted when
+/// `in == out` (in place motor application).
+///
+/// !!! tip
+///
+/// When applying a motor to a list of tightly packed lines, this
+/// routine will be *significantly faster* than applying the motor to
+/// each line individually.
 impl ApplyToMany<Line> for Motor {
     fn apply_to_many(self, input: &[Line], output: &mut [Line], count: usize) {
         swMM_seven(true, true, &input, self.p1_, self.p2_, output, count);
@@ -512,22 +639,22 @@ mod tests {
         assert_eq!(p2.w(), 30.);
     }
 
-    // #[test]
-    // fn motor_point_variadic()    {
-    //     let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-    //     let ps: [Point; 2] = [Point::new(-1., 1., 2.), 
-    //                           Point::new(-1., 1., 2.)];
-    //     let mut ps2 = <[Plane; 2]>::default();
+    #[test]
+    fn motor_point_variadic()    {
+        let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
+        let ps: [Point; 2] = [Point::new(-1., 1., 2.), 
+                              Point::new(-1., 1., 2.)];
+        let mut ps2 = <[Point; 2]>::default();
 
-    //     m.apply_to_many(&ps, &mut ps2, 2);
+        m.apply_to_many(&ps, &mut ps2, 2);
 
-    //     for i in 0..2        {
-    //         assert_eq!(ps2[i].x(), -12.);
-    //         assert_eq!(ps2[i].y(), -86.);
-    //         assert_eq!(ps2[i].z(), -86.);
-    //         assert_eq!(ps2[i].w(), 30.);
-    //     }
-    // }
+        for i in 0..2        {
+            assert_eq!(ps2[i].x(), -12.);
+            assert_eq!(ps2[i].y(), -86.);
+            assert_eq!(ps2[i].z(), -86.);
+            assert_eq!(ps2[i].w(), 30.);
+        }
+    }
 
     #[test]
     fn motor_constrain() {

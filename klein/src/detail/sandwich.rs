@@ -776,25 +776,30 @@ pub fn sw312Common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, __
     }
 }
 
-// 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-// 		public static unsafe void sw312(bool translate, __m128* a, __m128 b, __m128 c, __m128* res, int count)
-// 		{
-// 			var (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
+// pub fn sw012_six(translate:bool, a: &[Plane], b: __m128, c: __m128, res: &mut [Plane], count: usize) {
 
-// 			for (int i = 0; i < count; ++i)
-// 			{
-// 				ref __m128 p = ref res[i];
-// 				p = _mm_mul_ps(tmp1, _mm_swizzle_ps(a[i], 156 /* 2, 1, 3, 0 */));
-// 				p = _mm_add_ps(p, _mm_mul_ps(tmp2, _mm_swizzle_ps(a[i], 120 /* 1, 3, 2, 0 */)));
-// 				p = _mm_add_ps(p, _mm_mul_ps(tmp3, a[i]));
+use crate::Point;
 
-// 				if translate
-// 				{
-// 					p = _mm_add_ps(
-// 						 p, _mm_mul_ps(tmp4, _mm_swizzle_ps(a[i], 0 /* 0, 0, 0, 0 */)));
-// 				}
-// 			}
-// 		}
+#[inline]
+pub fn sw312_six(translate:bool, a: &[Point], b: __m128, c: __m128, res: &mut [Point], count: usize)
+{
+	let (tmp1, tmp2, tmp3, tmp4) = sw312Common(translate, b, c);
+
+	for i in 0..count {
+		//ref __m128 p = ref res[i];
+        unsafe {
+    		res[i].p3_ = _mm_mul_ps(tmp1, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 156 /* 2, 1, 3, 0 */));
+    		res[i].p3_ = _mm_add_ps(res[i].p3_, _mm_mul_ps(tmp2, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 120 /* 1, 3, 2, 0 */)));
+    		res[i].p3_ = _mm_add_ps(res[i].p3_, _mm_mul_ps(tmp3, a[i].p3_));
+
+    		if translate
+    		{
+    			res[i].p3_ = _mm_add_ps(
+    				 res[i].p3_, _mm_mul_ps(tmp4, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 0 /* 0, 0, 0, 0 */)));
+    		}
+        }
+	}
+}
 
 // Apply a motor to one point
 #[inline]

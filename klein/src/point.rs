@@ -1,4 +1,4 @@
-use crate::detail::sse::rcp_nr1;
+use crate::detail::sse::{rcp_nr1,hi_dp_bc,rsqrt_nr1};
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -58,7 +58,7 @@ impl From<__m128> for Point {
 impl Point {
 
     /// Create a normalized direction
-    pub fn direction(x: f32, y: f32, z: f32) -> Point    {
+    pub fn direction(x: f32, y: f32, z: f32) -> Point {
         unsafe {
             let mut p = Point{p3_ :_mm_set_ps(z, y, x, 0.)};
             p.normalize();
@@ -84,8 +84,15 @@ impl Point {
     /// Newton-Raphson refinement).
     pub fn normalize(&mut self) {
         unsafe {
-            let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
-            self.p3_ = _mm_mul_ps(self.p3_, tmp);
+            if self.w() == 0. {
+                // it's a direction, a point at infinity
+                let tmp = rsqrt_nr1(hi_dp_bc(self.p3_, self.p3_));
+                self.p3_ = _mm_mul_ps(self.p3_, tmp);
+            } else {
+                // it's a regular point
+                let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
+                self.p3_ = _mm_mul_ps(self.p3_, tmp);
+            }
         }
     }
 
@@ -93,7 +100,7 @@ impl Point {
     pub fn normalized(self) -> Point {
         let mut out = Point::clone(&self);
         out.normalize();
-        return out;
+        return out
     }
 
     pub fn invert(&mut self) {
@@ -152,7 +159,7 @@ impl Point {
         unsafe {
             _mm_store_ss(&mut out, self.p3_);
         }
-        return out;
+        return out
     }
 
     pub fn e123(self) -> f32 {
@@ -160,7 +167,29 @@ impl Point {
     }
 }
 
+use std::ops::{AddAssign, SubAssign};
+
+impl AddAssign for Point {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p3_ = _mm_add_ps(self.p3_, rhs.p3_);
+        }
+    }
+}
+
+impl SubAssign for Point {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p3_ = _mm_sub_ps(self.p3_, rhs.p3_);
+        }
+    }
+}
+
+
 use std::ops::Add;
+
 impl Add for Point {
     type Output = Point;
     #[inline]

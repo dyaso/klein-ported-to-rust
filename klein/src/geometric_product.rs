@@ -76,7 +76,7 @@ use crate::{Branch, Dual, IdealLine, Line, Motor, Plane, Point, Rotor, Translato
 /// ```
 //use crate::detail::sandwich::{sw02, swL2, sw32, sw012, swMM_three, sw312_four};
 use crate::detail::geometric_product::{
-    gp00, gp03_flip, gp03_noflip, gp11, gp12, gp33, gpLL, gpMM, gpRT,
+    gp00, gp03_flip, gp03_noflip, gp11, gp12, gp33, gpLL, gpMM, gpRT, gpDL
 };
 
 use std::ops::{Div, Mul};
@@ -111,16 +111,6 @@ impl Mul<Plane> for Point {
     }
 }
 
-impl Mul<Rotor> for Rotor {
-    type Output = Rotor;
-    #[inline]
-    fn mul(self, rhs: Rotor) -> Rotor {
-        let mut out = Rotor::default();
-        gp11(self.p1_, rhs.p1_, &mut out.p1_);
-        return out;
-    }
-}
-
 /// Generates a motor $m$ that produces a screw motion about the common normal
 /// to lines $a$ and $b$. The motor given by $\sqrt{m}$ takes $b$ to $a$
 /// provided that $a$ and $b$ are both normalized.
@@ -137,7 +127,7 @@ impl Mul<Line> for Line {
             &mut out.p1_,
             &mut out.p2_,
         );
-        return out;
+        return out
     }
 }
 
@@ -150,13 +140,42 @@ impl Mul<Point> for Point {
     fn mul(self, rhs: Point) -> Translator {
         let mut out = Translator::default();
         out.p2_ = gp33(self.p3_, rhs.p3_);
-        return out;
+        return out
     }
 }
 
-// dual line
+impl Mul<Rotor> for Rotor {
+    type Output = Rotor;
+    #[inline]
+    fn mul(self, rhs: Rotor) -> Rotor {
+        let mut out = Rotor::default();
+        gp11(self.p1_, rhs.p1_, &mut out.p1_);
+        return out
+    }
+}
 
-// line dual
+/// The product of a dual number and a line effectively weights the line with a
+/// rotational and translational quantity. Subsequent exponentiation will
+/// produce a motor along the screw axis of line $b$ with rotation and
+/// translation given by half the scalar and pseudoscalar parts of the dual
+/// number $a$ respectively.
+impl Mul<Line> for Dual {
+    type Output = Line;
+    #[inline]
+    fn mul(self, rhs: Line) -> Line {
+        let mut out = Line::default();
+        gpDL(self.p, self.q, rhs.p1_, rhs.p2_, &mut out.p1_, &mut out.p2_);
+        return out
+    }
+}
+
+impl Mul<Dual> for Line {
+    type Output = Line;
+    #[inline]
+    fn mul(self, rhs: Dual) -> Line {
+        return rhs * self
+    }
+}
 
 /// Compose the action of a translator and rotor (`rhs` will be applied, then `self`)
 impl Mul<Translator> for Rotor {
@@ -166,7 +185,7 @@ impl Mul<Translator> for Rotor {
         let mut out = Motor::default();
         out.p1_ = self.p1_;
         out.p2_ = gpRT(false, self.p1_, rhs.p2_);
-        return out;
+        return out
     }
 }
 
@@ -211,7 +230,7 @@ impl Mul<Motor> for Rotor {
         let mut out = Motor::default();
         gp11(self.p1_, rhs.p1_, &mut out.p1_);
         out.p2_ = gp12(false, self.p1_, rhs.p2_);
-        return out;
+        return out
     }
 }
 
@@ -223,7 +242,7 @@ impl Mul<Rotor> for Motor {
         let mut out = Motor::default();
         gp11(self.p1_, rhs.p1_, &mut out.p1_);
         out.p2_ = gp12(true, rhs.p1_, self.p2_);
-        return out;
+        return out
     }
 }
 
@@ -238,7 +257,7 @@ impl Mul<Motor> for Translator {
         unsafe {
             out.p2_ = _mm_add_ps(out.p2_, rhs.p2_);
         }
-        return out;
+        return out
     }
 }
 
@@ -253,7 +272,7 @@ impl Mul<Translator> for Motor {
         unsafe {
             out.p2_ = _mm_add_ps(out.p2_, self.p2_);
         }
-        return out;
+        return out
     }
 }
 
@@ -271,7 +290,7 @@ impl Mul<Motor> for Motor {
             &mut out.p1_,
             &mut out.p2_,
         );
-        return out;
+        return out
     }
 }
 
@@ -302,7 +321,7 @@ impl Div<Branch> for Branch {
     type Output = Rotor;
     #[inline]
     fn div(self, rhs: Branch) -> Rotor {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 // impl Div<Rotor> for Rotor {
@@ -316,35 +335,35 @@ impl Div<Translator> for Translator {
     type Output = Translator;
     #[inline]
     fn div(self, rhs: Translator) -> Translator {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 impl Div<Line> for Line {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Line) -> Motor {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 impl Div<Rotor> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Rotor) -> Motor {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 impl Div<Translator> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Translator) -> Motor {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 impl Div<Motor> for Motor {
     type Output = Motor;
     #[inline]
     fn div(self, rhs: Motor) -> Motor {
-        return self * rhs.inverse();
+        return self * rhs.inverse()
     }
 }
 
