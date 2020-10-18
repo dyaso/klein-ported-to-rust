@@ -183,21 +183,21 @@ impl SubAssign for Point {
 }
 
 /// Point uniform inverse scale
-impl DivAssign<f32> for Point {
+impl<T: Into<f32>> DivAssign<T> for Point {
     #[inline]
-    fn div_assign(&mut self, s: f32) {
+    fn div_assign(&mut self, s: T) {
         unsafe {
-            self.p3_ = _mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s)));
+            self.p3_ = _mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s.into())));
         }
     }
 }
 
 /// Point uniform scale
-impl MulAssign<f32> for Point {
+impl<T: Into<f32>> MulAssign<T> for Point {
     #[inline]
-    fn mul_assign(&mut self, s: f32) {
+    fn mul_assign(&mut self, s: T) {
         unsafe {
-            self.p3_ = _mm_mul_ps(self.p3_, _mm_set1_ps(s));            
+            self.p3_ = _mm_mul_ps(self.p3_, _mm_set1_ps(s.into()));
         }
     }
 }
@@ -232,21 +232,29 @@ impl<T: Into<f32>> Mul<T> for Point {
     }
 }
 
-impl Mul<Point> for f32 {
-    type Output = Point;
-    #[inline]
-    fn mul(self, p: Point) -> Point {
-        return p * self;
-    }
+macro_rules! mul_scalar_by_point {
+    ($s:ty) => {
+        impl Mul<Point> for $s {
+            type Output = Point;
+            #[inline]
+            fn mul(self, l: Point) -> Point {
+                return l * (self as f32);
+            }
+        }
+    };
 }
+
+mul_scalar_by_point!(f32);
+mul_scalar_by_point!(f64);
+mul_scalar_by_point!(i32);
+
 /// Point uniform inverse scale
-impl Div<f32> for Point {
+impl<T: Into<f32>> Div<T> for Point {
     type Output = Point;
     #[inline]
-    fn div(self, s: f32) -> Self {
+    fn div(self, s: T) -> Self {
         unsafe {
-            let c = Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s))));
-            return c;
+            Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s.into()))))
         }
     }
 }

@@ -563,9 +563,17 @@ impl ApplyOp<Point> for Motor {
     /// Conjugates a point $p$ with this motor and returns the result
     /// $mp\widetilde{m}$.
     fn apply_to(self, p: Point) -> Point {
-        return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))
+        if p.w() == 0. {
+            unsafe {
+                return Point::from(sw312_four(false, p.p3_, self.p1_, _mm_setzero_ps()))
+            }
+        } else {
+            return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))
+        }
     }
 }
+
+        // Detail.sw312(false, &input.P3, P1, default, &p3, 1);
 
 /// Conjugates a line $\ell$ with this motor and returns the result
 /// $m\ell \widetilde{m}$.

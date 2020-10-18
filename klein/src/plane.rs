@@ -1,5 +1,5 @@
 use crate::detail::sandwich::{sw00, sw10, sw20, sw30};
-use crate::detail::sse::{hi_dp, hi_dp_bc, rsqrt_nr1, sqrt_nr1};
+use crate::detail::sse::{hi_dp, hi_dp_bc, rsqrt_nr1, sqrt_nr1, rcp_nr1};
 use crate::{Line, Point};
 
 #[cfg(target_arch = "x86_64")]
@@ -166,6 +166,109 @@ impl Plane {
             );
             return _mm_movemask_ps(cmp) == 0b1111;
         }
+    }
+}
+
+use std::ops::{AddAssign, SubAssign, DivAssign, MulAssign};
+
+impl AddAssign for Plane {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p0_ = _mm_add_ps(self.p0_, rhs.p0_);
+        }
+    }
+}
+
+impl SubAssign for Plane {
+    #[inline]
+    fn sub_assign(&mut self, rhs: Self) {
+        unsafe {
+            self.p0_ = _mm_sub_ps(self.p0_, rhs.p0_);
+        }
+    }
+}
+
+impl<T: Into<f32>> DivAssign<T> for Plane {
+    #[inline]
+    fn div_assign(&mut self, s: T) {
+        unsafe {
+            self.p0_ = _mm_mul_ps(self.p0_, rcp_nr1(_mm_set1_ps(s.into())));
+        }
+    }
+}
+
+impl<T: Into<f32>> MulAssign<T> for Plane {
+    #[inline]
+    fn mul_assign(&mut self, s: T) {
+        unsafe {
+            self.p0_ = _mm_mul_ps(self.p0_, _mm_set1_ps(s.into()));
+        }
+    }
+}
+
+use std::ops::{Add, Sub, Mul, Div};
+
+impl Add for Plane {
+    type Output = Plane;
+    #[inline]
+    fn add(self, rhs: Self) -> Self {
+        unsafe { Plane::from(_mm_add_ps(self.p0_, rhs.p0_)) }
+    }
+}
+
+impl Sub for Plane {
+    type Output = Plane;
+    #[inline]
+    fn sub(self, rhs: Self) -> Self {
+        unsafe { Plane::from(_mm_sub_ps(self.p0_, rhs.p0_)) }
+    }
+}
+
+impl<T: Into<f32>> Mul<T> for Plane {
+    type Output = Plane;
+    #[inline]
+    fn mul(self, s: T) -> Self {
+        unsafe {
+            let c = Plane::from(_mm_mul_ps(self.p0_, _mm_set1_ps(s.into())));
+            return c;
+        }
+    }
+}
+
+macro_rules! mul_scalar_by_point {
+    ($s:ty) => {
+        impl Mul<Plane> for $s {
+            type Output = Plane;
+            #[inline]
+            fn mul(self, l: Plane) -> Plane {
+                return l * (self as f32);
+            }
+        }
+    };
+}
+
+mul_scalar_by_point!(f32);
+mul_scalar_by_point!(f64);
+mul_scalar_by_point!(i32);
+
+impl<T: Into<f32>> Div<T> for Plane {
+    type Output = Plane;
+    #[inline]
+    fn div(self, s: T) -> Self {
+        unsafe {
+            Plane::from(_mm_mul_ps(self.p0_, rcp_nr1(_mm_set1_ps(s.into()))))
+        }
+    }
+}
+
+use std::ops::Neg;
+impl Neg for Plane {
+    type Output = Plane;
+    /// Unary minus (leaves homogeneous coordinate untouched)
+    #[inline]
+    fn neg(self) -> Self::Output {
+        return Plane::from(unsafe { _mm_xor_ps(self.p0_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) });
     }
 }
 

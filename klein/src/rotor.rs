@@ -2,7 +2,6 @@
 use std::arch::x86_64::*;
 
 use crate::detail::sandwich::{sw012, sw_mm_three, sw_mm_two};
-use crate::detail::sse::{dp_bc, rsqrt_nr1}; //rcp_nr1, hi_dp, hi_dp_bc, };
 
 use crate::util::ApplyOp;
 use crate::{Branch, Line, Point};
@@ -123,7 +122,7 @@ impl Rotor {
                 cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
             );
 
-            return Rotor::from(p1_).normalized_rotor();
+            return Rotor::from(p1_).normalized()
         }
     }
 
@@ -191,18 +190,20 @@ impl Rotor {
         return ea;
     }
 
-    pub fn normalize_rotor(&mut self) {
-        unsafe {
-            let inv_norm: __m128 = rsqrt_nr1(dp_bc(self.p1_, self.p1_));
-            self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
-        }
-    }
+// rotor normalization is done in Branch in Line.rs
 
-    pub fn normalized_rotor(self) -> Self {
-        let mut out = Self::from(self.p1_);
-        out.normalize_rotor();
-        return out;
-    }
+    // pub fn normalize_rotor(&mut self) {
+    //     unsafe {
+    //         let inv_norm: __m128 = rsqrt_nr1(dp_bc(self.p1_, self.p1_));
+    //         self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
+    //     }
+    // }
+
+    // pub fn normalized_rotor(self) -> Self {
+    //     let mut out = Self::from(self.p1_);
+    //     out.normalize_rotor();
+    //     return out;
+    // }
 }
 
 impl PartialEq for Rotor {

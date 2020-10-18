@@ -3,7 +3,7 @@ Incomplete (as of mid October 2020) Rust port of Jeremy Ong's [SIMD-enabled proj
 
 Run `cargo run --example spinning_tetrahedron` to see an example drawn using a [Druid](https://github.com/linebender/druid) window.
 
-Yet to be ported are functions relating to matrices (mostly useful for interacting with existing graphics libraries, less necessary as Klein can apply GA operations in shaders) and maths operations on the Motor type (which can be copied and pasted from the Line type).
+Yet to be ported are functions relating to matrices.
 
 ## Porting notes
 

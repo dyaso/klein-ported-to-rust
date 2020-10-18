@@ -73,42 +73,18 @@ impl SubAssign for IdealLine {
 }
 
 /// Ideal line uniform scale
-impl MulAssign<f32> for IdealLine {
+impl<T: Into<f32>> MulAssign<T> for IdealLine {
     #[inline]
-    fn mul_assign(&mut self, s: f32) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, _mm_set1_ps(s)) }
-    }
-}
-impl MulAssign<f64> for IdealLine {
-    #[inline]
-    fn mul_assign(&mut self, s: f64) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, _mm_set1_ps(s as f32)) }
-    }
-}
-impl MulAssign<i32> for IdealLine {
-    #[inline]
-    fn mul_assign(&mut self, s: i32) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, _mm_set1_ps(s as f32)) }
+    fn mul_assign(&mut self, s: T) {
+        unsafe { self.p2_ = _mm_mul_ps(self.p2_, _mm_set1_ps(s.into())) }
     }
 }
 
 /// Ideal line uniform inverse scale
-impl DivAssign<f32> for IdealLine {
+impl<T: Into<f32>> DivAssign<T> for IdealLine {
     #[inline]
-    fn div_assign(&mut self, s: f32) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, rcp_nr1(_mm_set1_ps(s))) }
-    }
-}
-impl DivAssign<f64> for IdealLine {
-    #[inline]
-    fn div_assign(&mut self, s: f64) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, rcp_nr1(_mm_set1_ps(s as f32))) }
-    }
-}
-impl DivAssign<i32> for IdealLine {
-    #[inline]
-    fn div_assign(&mut self, s: i32) {
-        unsafe { self.p2_ = _mm_mul_ps(self.p2_, rcp_nr1(_mm_set1_ps(s as f32))) }
+    fn div_assign(&mut self, s: T) {
+        unsafe { self.p2_ = _mm_mul_ps(self.p2_, rcp_nr1(_mm_set1_ps(s.into()))) }
     }
 }
 
@@ -133,11 +109,12 @@ impl Sub for IdealLine {
 //scalar_multiply!(IdealLine, unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s))) });
 
 /// Ideal line uniform scale
-impl Mul<f32> for IdealLine {
-    type Output = IdealLine;
+impl<T: Into<f32>> Mul<T> for IdealLine {
+// impl Mul<f32> for IdealLine {
+    type Output = Self;
     #[inline]
-    fn mul(self, s: f32) -> Self {
-        unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s))) }
+    fn mul(self, s: T) -> Self {
+        unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s.into()))) }
     }
 }
 impl Mul<IdealLine> for f32 {
@@ -147,32 +124,32 @@ impl Mul<IdealLine> for f32 {
         return p * self;
     }
 }
-impl Mul<f64> for IdealLine {
-    type Output = IdealLine;
-    #[inline]
-    fn mul(self, s: f64) -> Self {
-        unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s as f32))) }
-    }
-}
+// impl Mul<f64> for IdealLine {
+//     type Output = IdealLine;
+//     #[inline]
+//     fn mul(self, s: f64) -> Self {
+//         unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s as f32))) }
+//     }
+// }
 impl Mul<IdealLine> for f64 {
     type Output = IdealLine;
     #[inline]
     fn mul(self, p: IdealLine) -> IdealLine {
-        return p * self;
+        return p * self as f32;
     }
 }
-impl Mul<i32> for IdealLine {
-    type Output = IdealLine;
-    #[inline]
-    fn mul(self, s: i32) -> Self {
-        unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s as f32))) }
-    }
-}
+// impl Mul<i32> for IdealLine {
+//     type Output = IdealLine;
+//     #[inline]
+//     fn mul(self, s: i32) -> Self {
+//         unsafe { IdealLine::from(_mm_mul_ps(self.p2_, _mm_set1_ps(s as f32))) }
+//     }
+// }
 impl Mul<IdealLine> for i32 {
     type Output = IdealLine;
     #[inline]
     fn mul(self, p: IdealLine) -> IdealLine {
-        return p * self;
+        return p * self as f32;
     }
 }
 
@@ -351,7 +328,7 @@ impl Branch {
     pub fn normalized(self) -> Self {
         let mut out = Self::from(self.p1_);
         out.normalize();
-        return out;
+        return out
     }
 
     pub fn invert(&mut self) {
@@ -446,13 +423,14 @@ impl Sub for Branch {
 
 /// Branch uniform scale
 
-impl Mul<f32> for Branch {
+impl<T: Into<f32>> Mul<T> for Branch {
     type Output = Branch;
     #[inline]
-    fn mul(self, s: f32) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, _mm_set1_ps(s))) }
+    fn mul(self, s: T) -> Self {
+        unsafe { Branch::from(_mm_mul_ps(self.p1_, _mm_set1_ps(s.into()))) }
     }
 }
+
 impl Mul<Branch> for f32 {
     type Output = Branch;
     #[inline]
@@ -460,76 +438,39 @@ impl Mul<Branch> for f32 {
         return p * self;
     }
 }
-impl Mul<f64> for Branch {
-    type Output = Branch;
-    #[inline]
-    fn mul(self, s: f64) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, _mm_set1_ps(s as f32))) }
-    }
-}
+
 impl Mul<Branch> for f64 {
     type Output = Branch;
     #[inline]
     fn mul(self, p: Branch) -> Branch {
-        return p * self;
+        return p * self as f32;
     }
 }
-impl Mul<i32> for Branch {
-    type Output = Branch;
-    #[inline]
-    fn mul(self, s: i32) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, _mm_set1_ps(s as f32))) }
-    }
-}
+
 impl Mul<Branch> for i32 {
     type Output = Branch;
     #[inline]
     fn mul(self, p: Branch) -> Branch {
-        return p * self;
+        return p * self as f32;
     }
 }
 
 /// Ideal line uniform inverse scale
-impl Div<f32> for Branch {
+impl<T: Into<f32>> Div<T> for Branch {
     type Output = Branch;
     #[inline]
-    fn div(self, s: f32) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, rcp_nr1(_mm_set1_ps(s)))) }
-    }
-}
-impl Div<f64> for Branch {
-    type Output = Branch;
-    #[inline]
-    fn div(self, s: f64) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, rcp_nr1(_mm_set1_ps(s as f32)))) }
-    }
-}
-impl Div<i32> for Branch {
-    type Output = Branch;
-    #[inline]
-    fn div(self, s: i32) -> Self {
-        unsafe { Branch::from(_mm_mul_ps(self.p1_, rcp_nr1(_mm_set1_ps(s as f32)))) }
+    fn div(self, s: T) -> Self {
+        unsafe { Branch::from(_mm_mul_ps(self.p1_, rcp_nr1(_mm_set1_ps(s.into())))) }
     }
 }
 
 impl Branch {
     /// Store m128 contents into an array of 4 floats
     pub fn store(self, out: &mut f32) {
-        //let mut out = <[f32; 4]>::default();
-
         unsafe {
             _mm_store_ps(&mut *out, self.p1_);
         }
-//        return out;
     }
-    // pub fn store(self) -> [f32; 4] {
-    //     let mut out = <[f32; 4]>::default();
-
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p1_);
-    //     }
-    //     return out;
-    // }
 
     pub fn e12(self) -> f32 {
         let mut out = <[f32; 4]>::default();
@@ -851,50 +792,26 @@ impl SubAssign for Line {
 }
 
 /// Line uniform scale
-impl MulAssign<f32> for Line {
+impl<T: Into<f32>> MulAssign<T> for Line {
     #[inline]
-    fn mul_assign(&mut self, s: f32) {
+    fn mul_assign(&mut self, s: T) {
         unsafe {
-            let vs: __m128 = _mm_set1_ps(s);
+            let vs: __m128 = _mm_set1_ps(s.into());
             self.p1_ = _mm_mul_ps(self.p1_, vs);
             self.p2_ = _mm_mul_ps(self.p2_, vs);
         }
-    }
-}
-impl MulAssign<f64> for Line {
-    #[inline]
-    fn mul_assign(&mut self, s: f64) {
-        self.mul_assign(s as f32)
-    }
-}
-impl MulAssign<i32> for Line {
-    #[inline]
-    fn mul_assign(&mut self, s: i32) {
-        self.mul_assign(s as f32)
     }
 }
 
 /// Line uniform inverse scale
-impl DivAssign<f32> for Line {
+impl<T: Into<f32>> DivAssign<T> for Line {
     #[inline]
-    fn div_assign(&mut self, s: f32) {
+    fn div_assign(&mut self, s: T) {
         unsafe {
-            let vs: __m128 = rcp_nr1(_mm_set1_ps(s));
+            let vs: __m128 = rcp_nr1(_mm_set1_ps(s.into()));
             self.p1_ = _mm_mul_ps(self.p1_, vs);
             self.p2_ = _mm_mul_ps(self.p2_, vs);
         }
-    }
-}
-impl DivAssign<f64> for Line {
-    #[inline]
-    fn div_assign(&mut self, s: f64) {
-        self.div_assign(s as f32)
-    }
-}
-impl DivAssign<i32> for Line {
-    #[inline]
-    fn div_assign(&mut self, s: i32) {
-        self.div_assign(s as f32)
     }
 }
 
@@ -1001,24 +918,6 @@ impl<T: Into<f32>> Mul<T> for Line {
         }
     }
 }
-// impl Mul<f64> for Line {
-//     type Output = Line;
-//     #[inline]
-//     fn mul(self, s: f64) -> Self {
-//         self.mul(s as f32)
-//     }
-// }
-
-
-// struct Scalar<S>(S);
-
-// impl<T: Into<f32>> Mul<Line> for Scalar<T> {
-//     type Output = Line;
-//     #[inline]
-//     fn mul(self, l: Line) -> Line {
-//         return l * (<f32>::self.into());
-//     }
-// }
 
 // i couldn't work out how to get something like the above to work here
 macro_rules! mul_scalar_by_line {
