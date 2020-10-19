@@ -1,4 +1,4 @@
-pub trait ApplyOp<O> {
+pub trait ApplyTo<O> {
     fn apply_to(self, other: O) -> O;
 }
 

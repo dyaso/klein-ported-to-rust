@@ -72,7 +72,7 @@ impl BitAnd<Point> for Point {
     type Output = Line;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 
@@ -80,7 +80,7 @@ impl BitAnd<Line> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Line) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 
@@ -89,7 +89,7 @@ impl BitAnd<Point> for Line {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self;
+        rhs & self
     }
 }
 
@@ -97,7 +97,7 @@ impl BitAnd<Branch> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Branch) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 
@@ -105,7 +105,7 @@ impl BitAnd<Point> for Branch {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self;
+        rhs & self
     }
 }
 
@@ -113,7 +113,7 @@ impl BitAnd<IdealLine> for Point {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: IdealLine) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 
@@ -121,7 +121,7 @@ impl BitAnd<Point> for IdealLine {
     type Output = Plane;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return rhs & self;
+        rhs & self
     }
 }
 
@@ -129,7 +129,7 @@ impl BitAnd<Point> for Plane {
     type Output = Dual;
     #[inline]
     fn bitand(self, rhs: Point) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 
@@ -137,7 +137,7 @@ impl BitAnd<Plane> for Point {
     type Output = Dual;
     #[inline]
     fn bitand(self, rhs: Plane) -> Self::Output {
-        return !(!self ^ !rhs);
+        !(!self ^ !rhs)
     }
 }
 

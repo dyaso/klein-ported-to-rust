@@ -4,7 +4,7 @@ use std::arch::x86_64::*;
 //use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
 use crate::detail::sandwich::{sw02, sw32, sw_l2};
 
-use crate::util::ApplyOp;
+use crate::util::ApplyTo;
 use crate::{IdealLine, Line, Plane, Point};
 
 /// \defgroup translator Translators
@@ -79,13 +79,13 @@ impl Translator {
     pub fn inverse(self) -> Translator {
         let mut out = Translator::from(self.p2_);
         out.invert();
-        return out;
+        out
     }
 }
 
 /// Conjugates a plane $p$ with this translator and returns the result
 /// $tp\widetilde{t}$.
-impl ApplyOp<Plane> for Translator {
+impl ApplyTo<Plane> for Translator {
     fn apply_to(self, p: Plane) -> Plane {
         unsafe {
             let tmp: __m128;
@@ -101,7 +101,7 @@ impl ApplyOp<Plane> for Translator {
 
 /// Conjugates a line $\ell$ with this translator and returns the result
 /// $t\ell\widetilde{t}$.
-impl ApplyOp<Line> for Translator {
+impl ApplyTo<Line> for Translator {
     fn apply_to(self, l: Line) -> Line {
         Line::from(l.p1_, sw_l2(l.p1_, l.p2_, self.p2_))
     }
@@ -109,7 +109,7 @@ impl ApplyOp<Line> for Translator {
 
 /// Conjugates a point $p$ with this translator and returns the result
 /// $tp\widetilde{t}$.
-impl ApplyOp<Point> for Translator {
+impl ApplyTo<Point> for Translator {
     fn apply_to(self, p: Point) -> Point {
         Point::from(sw32(p.p3_, self.p2_))
     }
@@ -125,7 +125,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, Line, Point, Translator};
+    use crate::{ApplyTo, Line, Point, Translator};
 
     #[test]
     fn translator_point() {
@@ -155,7 +155,7 @@ mod tests {
 
     use crate::detail::sandwich::sw02;
     #[test]
-    fn simd_sandwich()  {
+    fn simd_sandwich() {
         let mut ab = <[f32; 4]>::default();
 
         unsafe {
@@ -170,4 +170,3 @@ mod tests {
         assert_eq!(ab[3], 4.);
     }
 }
-

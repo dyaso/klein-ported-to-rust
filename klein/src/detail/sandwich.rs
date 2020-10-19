@@ -1,6 +1,4 @@
-// https://github.com/Ziriax/KleinSharp/blob/master/KleinSharp/Source/Detail/x86_sandwich.cs
-
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use crate::detail::sse::{hi_dp, rcp_nr1}; // hi_dp_ss, hi_dp_bc, rsqrt_nr1};
@@ -132,7 +130,7 @@ pub fn sw20(a: __m128, b: __m128) -> __m128 {
         );
         p2 = _mm_shuffle_ps(p2, p2, 120 /* 1, 3, 2, 0 */);
 
-        return p2;
+        p2
     }
 }
 
@@ -170,7 +168,7 @@ pub fn sw30(a: __m128, b: __m128) -> __m128 {
 
         p3_out = _mm_add_ps(p3_out, _mm_mul_ps(b, tmp));
 
-        return p3_out;
+        p3_out
     }
 }
 
@@ -212,7 +210,7 @@ pub fn sw02(a: __m128, b: __m128) -> __m128 {
         tmp = _mm_mul_ss(tmp, inv_b);
 
         // Add to the plane
-        return _mm_add_ps(a, tmp);
+        _mm_add_ps(a, tmp)
     }
 }
 
@@ -257,7 +255,7 @@ pub fn sw_l2(a: __m128, d: __m128, c: __m128) -> __m128 {
         p2_out = _mm_add_ps(p2_out, p2_out);
         p2_out = _mm_add_ps(p2_out, d);
 
-        return p2_out;
+        p2_out
     }
 }
 
@@ -277,7 +275,7 @@ pub fn sw32(a: __m128, b: __m128) -> __m128 {
         let mut tmp: __m128 = _mm_mul_ps(_mm_shuffle_ps(a, a, 0 /* 0, 0, 0, 0 */), b);
         tmp = _mm_mul_ps(_mm_set_ps(-2., -2., -2., 0.), tmp);
         tmp = _mm_add_ps(a, tmp);
-        return tmp;
+        tmp
     }
 }
 
@@ -357,7 +355,7 @@ pub fn sw_mm_rotation(b: __m128) -> (__m128, __m128, __m128) {
         // tmp2 scaled by (d0, d2, d3, d1) and added to p2
         // tmp3 scaled by (d0, d3, d1, d2) and added to p2
 
-        return (tmp1, tmp2, tmp3);
+        (tmp1, tmp2, tmp3)
     }
 }
 
@@ -408,7 +406,7 @@ pub fn sw_mm_translation(b: __m128, c: __m128) -> (__m128, __m128, __m128) {
         tmp6 = _mm_sub_ps(tmp6, _mm_mul_ps(b_xwyz, czero));
         tmp6 = _mm_mul_ps(tmp6, scale);
 
-        return (tmp4, tmp5, tmp6);
+        (tmp4, tmp5, tmp6)
     }
 }
 
@@ -416,14 +414,18 @@ use crate::Line;
 
 #[inline]
 pub fn sw_mm_seven(
-	translate: bool, input_p2: bool,
-	inp: &[Line], b: __m128, c: __m128,
-	res: &mut [Line], count:usize) {
-	let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
+    translate: bool,
+    input_p2: bool,
+    inp: &[Line],
+    b: __m128,
+    c: __m128,
+    res: &mut [Line],
+    count: usize,
+) {
+    let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
 
-    unsafe{
-
-    	let (mut tmp4, mut tmp5, mut tmp6) = (_mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps());
+    unsafe {
+        let (mut tmp4, mut tmp5, mut tmp6) = (_mm_setzero_ps(), _mm_setzero_ps(), _mm_setzero_ps());
         if translate {
             let (ttmp4, ttmp5, ttmp6) = sw_mm_translation(b, c);
             tmp4 = ttmp4;
@@ -431,34 +433,37 @@ pub fn sw_mm_seven(
             tmp6 = ttmp6;
         }
 
-    	for i in 0..count {
-    		let p1_in = inp[i].p1_; // a
-    		let p1_in_xzwy = _mm_shuffle_ps(p1_in,p1_in, 120 /* 1, 3, 2, 0 */);
-    		let p1_in_xwyz = _mm_shuffle_ps(p1_in,p1_in, 156 /* 2, 1, 3, 0 */);
+        for i in 0..count {
+            let p1_in = inp[i].p1_; // a
+            let p1_in_xzwy = _mm_shuffle_ps(p1_in, p1_in, 120 /* 1, 3, 2, 0 */);
+            let p1_in_xwyz = _mm_shuffle_ps(p1_in, p1_in, 156 /* 2, 1, 3, 0 */);
 
-    		res[i].p1_ = _mm_mul_ps(tmp1, p1_in);
-    		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp2, p1_in_xzwy));
-    		res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp3, p1_in_xwyz));
+            res[i].p1_ = _mm_mul_ps(tmp1, p1_in);
+            res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp2, p1_in_xzwy));
+            res[i].p1_ = _mm_add_ps(res[i].p1_, _mm_mul_ps(tmp3, p1_in_xwyz));
 
-    		if input_p2 {
-    			let p2_in = inp[i].p2_; // d
-    			// let res[2*i + 1] = ref res[2 * i + 1];
-    			res[i].p2_ = _mm_mul_ps(tmp1, p2_in);
-    			res[i].p2_ = _mm_add_ps(
-    				res[i].p2_, _mm_mul_ps(tmp2, _mm_shuffle_ps(p2_in,p2_in, 120 /* 1, 3, 2, 0 */)));
-    			res[i].p2_ = _mm_add_ps(
-    				res[i].p2_, _mm_mul_ps(tmp3, _mm_shuffle_ps(p2_in,p2_in, 156 /* 2, 1, 3, 0 */)));
-    		}
+            if input_p2 {
+                let p2_in = inp[i].p2_; // d
+                                        // let res[2*i + 1] = ref res[2 * i + 1];
+                res[i].p2_ = _mm_mul_ps(tmp1, p2_in);
+                res[i].p2_ = _mm_add_ps(
+                    res[i].p2_,
+                    _mm_mul_ps(tmp2, _mm_shuffle_ps(p2_in, p2_in, 120 /* 1, 3, 2, 0 */)),
+                );
+                res[i].p2_ = _mm_add_ps(
+                    res[i].p2_,
+                    _mm_mul_ps(tmp3, _mm_shuffle_ps(p2_in, p2_in, 156 /* 2, 1, 3, 0 */)),
+                );
+            }
 
-    		// If what is being applied is a rotor, the non-directional
-    		// components of the line are left untouched
-    		if translate
-    		{
-    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp4, p1_in));
-    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp5, p1_in_xwyz));
-    			res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp6, p1_in_xzwy));
-    		}
-    	}
+            // If what is being applied is a rotor, the non-directional
+            // components of the line are left untouched
+            if translate {
+                res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp4, p1_in));
+                res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp5, p1_in_xwyz));
+                res[i].p2_ = _mm_add_ps(res[i].p2_, _mm_mul_ps(tmp6, p1_in_xzwy));
+            }
+        }
     }
 }
 
@@ -490,7 +495,7 @@ pub fn sw_mm_four(inp1: __m128, inp2: __m128, b: __m128, c: __m128) -> (__m128, 
         p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp5, p1_in_xwyz));
         p2_out = _mm_add_ps(p2_out, _mm_mul_ps(tmp6, p1_in_xzwy));
 
-        return (p1_out, p2_out);
+        (p1_out, p2_out)
     }
 }
 
@@ -516,23 +521,22 @@ pub fn sw_mm_three(inp1: __m128, inp2: __m128, b: __m128) -> (__m128, __m128) {
             _mm_mul_ps(tmp3, _mm_shuffle_ps(inp2, inp2, 156 /* 2, 1, 3, 0 */)),
         );
 
-        return (p1_out, p2_out);
+        (p1_out, p2_out)
     }
 }
 
 #[inline]
-pub fn sw_mm_two(inp1: __m128, b: __m128) -> __m128{
-	let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
+pub fn sw_mm_two(inp1: __m128, b: __m128) -> __m128 {
+    let (tmp1, tmp2, tmp3) = sw_mm_rotation(b);
 
-    unsafe{
+    unsafe {
+        let p1_in_xzwy = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
+        let p1_in_xwyz = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
 
-    	let p1_in_xzwy = _mm_shuffle_ps(inp1, inp1, 120 /* 1, 3, 2, 0 */);
-    	let p1_in_xwyz = _mm_shuffle_ps(inp1, inp1, 156 /* 2, 1, 3, 0 */);
-
-    	let mut p1_out = _mm_mul_ps(tmp1, inp1);
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
-    	p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
-    	return p1_out
+        let mut p1_out = _mm_mul_ps(tmp1, inp1);
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp2, p1_in_xzwy));
+        p1_out = _mm_add_ps(p1_out, _mm_mul_ps(tmp3, p1_in_xwyz));
+        p1_out
     }
 }
 
@@ -643,32 +647,48 @@ pub fn sw012_common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, _
             tmp4 = _mm_mul_ps(tmp4, dc_scale);
         }
 
-        return (tmp1, tmp2, tmp3, tmp4);
+        (tmp1, tmp2, tmp3, tmp4)
     }
 }
 
 use crate::Plane;
 
 #[inline]
-pub fn sw012_six(translate:bool, a: &[Plane], b: __m128, c: __m128, res: &mut [Plane], count: usize) {
-	let (tmp1, tmp2, tmp3, tmp4) = sw012_common(translate, b, c);
+pub fn sw012_six(
+    translate: bool,
+    a: &[Plane],
+    b: __m128,
+    c: __m128,
+    res: &mut [Plane],
+    count: usize,
+) {
+    let (tmp1, tmp2, tmp3, tmp4) = sw012_common(translate, b, c);
 
-	// The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
-	// dependence on b and c.
-	for i in 0..count {
-		// Compute the lower block for components e1, e2, and e3
-	    // let ref p = res[i];
+    // The temporaries (tmp1, tmp2, tmp3, tmp4) strictly only have a
+    // dependence on b and c.
+    for i in 0..count {
+        // Compute the lower block for components e1, e2, and e3
+        // let ref p = res[i];
         unsafe {
-    		res[i].p0_ = _mm_mul_ps(tmp1, _mm_shuffle_ps(a[i].p0_, a[i].p0_, 120 /* 1, 3, 2, 0 */));
-    		res[i].p0_ = _mm_add_ps(res[i].p0_, _mm_mul_ps(tmp2, _mm_shuffle_ps(a[i].p0_,a[i].p0_, 156 /* 2, 1, 3, 0 */)));
-    		res[i].p0_ = _mm_add_ps(res[i].p0_, _mm_mul_ps(tmp3, a[i].p0_));
+            res[i].p0_ = _mm_mul_ps(
+                tmp1,
+                _mm_shuffle_ps(a[i].p0_, a[i].p0_, 120 /* 1, 3, 2, 0 */),
+            );
+            res[i].p0_ = _mm_add_ps(
+                res[i].p0_,
+                _mm_mul_ps(
+                    tmp2,
+                    _mm_shuffle_ps(a[i].p0_, a[i].p0_, 156 /* 2, 1, 3, 0 */),
+                ),
+            );
+            res[i].p0_ = _mm_add_ps(res[i].p0_, _mm_mul_ps(tmp3, a[i].p0_));
 
-    		if translate {
-    			let tmp5 = hi_dp(tmp4, a[i].p0_);
-    			res[i].p0_ = _mm_add_ps(res[i].p0_, tmp5);
-    		}
+            if translate {
+                let tmp5 = hi_dp(tmp4, a[i].p0_);
+                res[i].p0_ = _mm_add_ps(res[i].p0_, tmp5);
+            }
         }
-	}
+    }
 }
 
 #[inline]
@@ -690,7 +710,7 @@ pub fn sw012(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
             p = _mm_add_ps(p, tmp5);
         }
 
-        return p;
+        p
     }
 }
 
@@ -764,7 +784,7 @@ pub fn sw312_common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, _
             // tmp4 needs to be scaled by (_, a0, a0, a0)
         }
 
-        return (tmp1, tmp2, tmp3, tmp4);
+        (tmp1, tmp2, tmp3, tmp4)
     }
 }
 
@@ -773,24 +793,40 @@ pub fn sw312_common(translate: bool, b: __m128, c: __m128) -> (__m128, __m128, _
 use crate::Point;
 
 #[inline]
-pub fn sw312_six(translate:bool, a: &[Point], b: __m128, c: __m128, res: &mut [Point], count: usize)
-{
-	let (tmp1, tmp2, tmp3, tmp4) = sw312_common(translate, b, c);
+pub fn sw312_six(
+    translate: bool,
+    a: &[Point],
+    b: __m128,
+    c: __m128,
+    res: &mut [Point],
+    count: usize,
+) {
+    let (tmp1, tmp2, tmp3, tmp4) = sw312_common(translate, b, c);
 
-	for i in 0..count {
-		//ref __m128 p = ref res[i];
+    for i in 0..count {
+        //ref __m128 p = ref res[i];
         unsafe {
-    		res[i].p3_ = _mm_mul_ps(tmp1, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 156 /* 2, 1, 3, 0 */));
-    		res[i].p3_ = _mm_add_ps(res[i].p3_, _mm_mul_ps(tmp2, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 120 /* 1, 3, 2, 0 */)));
-    		res[i].p3_ = _mm_add_ps(res[i].p3_, _mm_mul_ps(tmp3, a[i].p3_));
+            res[i].p3_ = _mm_mul_ps(
+                tmp1,
+                _mm_shuffle_ps(a[i].p3_, a[i].p3_, 156 /* 2, 1, 3, 0 */),
+            );
+            res[i].p3_ = _mm_add_ps(
+                res[i].p3_,
+                _mm_mul_ps(
+                    tmp2,
+                    _mm_shuffle_ps(a[i].p3_, a[i].p3_, 120 /* 1, 3, 2, 0 */),
+                ),
+            );
+            res[i].p3_ = _mm_add_ps(res[i].p3_, _mm_mul_ps(tmp3, a[i].p3_));
 
-    		if translate
-    		{
-    			res[i].p3_ = _mm_add_ps(
-    				 res[i].p3_, _mm_mul_ps(tmp4, _mm_shuffle_ps(a[i].p3_,a[i].p3_, 0 /* 0, 0, 0, 0 */)));
-    		}
+            if translate {
+                res[i].p3_ = _mm_add_ps(
+                    res[i].p3_,
+                    _mm_mul_ps(tmp4, _mm_shuffle_ps(a[i].p3_, a[i].p3_, 0 /* 0, 0, 0, 0 */)),
+                );
+            }
         }
-	}
+    }
 }
 
 // Apply a motor to one point
@@ -813,7 +849,7 @@ pub fn sw312_four(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
             );
         }
 
-        return p;
+        p
     }
 }
 

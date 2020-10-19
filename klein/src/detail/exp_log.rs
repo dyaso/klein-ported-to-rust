@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{hi_dp_bc, rcp_nr1, rsqrt_nr1};//hi_dp, hi_dp_ss
+use crate::detail::sse::{hi_dp_bc, rcp_nr1, rsqrt_nr1}; //hi_dp, hi_dp_ss
 
 // Partition memory layouts
 //     LSB --> MSB
@@ -118,6 +118,7 @@ pub fn simd_exp(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) 
     }
 }
 
+#[allow(clippy::many_single_char_names)]
 #[inline]
 pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128) {
     // The logarithm follows from the derivation of the exponential. Working

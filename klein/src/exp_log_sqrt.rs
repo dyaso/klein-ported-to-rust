@@ -39,7 +39,7 @@ impl Motor {
     pub fn log(self) -> Line {
         let mut out = Line::default();
         simd_log(self.p1_, self.p2_, &mut out.p1_, &mut out.p2_);
-        return out;
+        out
     }
 }
 
@@ -53,7 +53,7 @@ impl Line {
     pub fn exp(self) -> Motor {
         let mut out = Motor::default();
         simd_exp(self.p1_, self.p2_, &mut out.p1_, &mut out.p2_);
-        return out;
+        out
     }
 }
 
@@ -65,7 +65,7 @@ impl Translator {
     pub fn log(self) -> IdealLine {
         let mut out = IdealLine::default();
         out.p2_ = self.p2_;
-        return out;
+        out
     }
 }
 
@@ -81,7 +81,7 @@ impl IdealLine {
     pub fn exp(self) -> Translator {
         let mut out = Translator::default();
         out.p2_ = self.p2_;
-        return out;
+        out
     }
 }
 
@@ -111,7 +111,7 @@ impl Rotor {
             } else {
                 out.p1_ = _mm_and_ps(out.p1_, _mm_castsi128_ps(_mm_set_epi32(-1, -1, -1, 0)));
             }
-            return out;
+            out
         }
     }
 }
@@ -131,7 +131,7 @@ impl Branch {
             out.p1_ = _mm_mul_ps(_mm_set1_ps(sin_ang), self.p1_);
             out.p1_ = _mm_add_ps(out.p1_, _mm_set_ps(0., 0., 0., cos_ang));
         }
-        return out;
+        out
     }
 }
 
@@ -139,11 +139,7 @@ impl Branch {
 impl Rotor {
     #[inline]
     pub fn sqrt(self) -> Rotor {
-        unsafe {
-            let mut r = Rotor::from(_mm_add_ss(self.p1_, _mm_set_ss(1.)));
-            r.normalize();
-            return r;
-        }
+        unsafe { Rotor::from(_mm_add_ss(self.p1_, _mm_set_ss(1.))).normalized() }
     }
 }
 
@@ -162,9 +158,10 @@ impl Rotor {
 impl Translator {
     #[inline]
     pub fn sqrt(self) -> Translator {
-        let mut t = self;
-        t *= 0.5;
-        return t;
+        //let t = self;
+        // t *= 0.5;
+        // t
+        self * 0.5
     }
 }
 
@@ -176,7 +173,7 @@ impl Motor {
             let m =
                 Motor::from_rotor_and_translator(_mm_add_ss(self.p1_, _mm_set_ss(1.)), self.p2_);
             m.normalized_motor()
-//            return m
+            //            return m
         }
     }
 }
@@ -189,8 +186,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Branch, Line, Motor, Rotor, Translator,
-    };
+    use crate::{Branch, Line, Motor, Rotor, Translator};
 
     #[test]
     fn rotor_exp_log() {

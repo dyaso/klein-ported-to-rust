@@ -53,7 +53,7 @@ pub fn ext_pb(a: __m128, b: __m128) -> __m128 {
             _mm_set_ps(-1., -1., -1., 0.),
         );
 
-        return _mm_add_ss(p3_out, hi_dp(a, b))
+        _mm_add_ss(p3_out, hi_dp(a, b))
     }
 }
 
@@ -75,7 +75,7 @@ pub fn ext02(a: __m128, b: __m128) -> __m128 {
             120, /* 1, 3, 2, 0 */
         );
 
-        return p3_out;
+        p3_out
     }
 }
 
@@ -89,7 +89,7 @@ pub fn ext03_false(a: __m128, b: __m128) -> __m128 {
 #[inline]
 pub fn ext03_true(a: __m128, b: __m128) -> __m128 {
     let p2 = dp(a, b);
-    unsafe { return _mm_xor_ps(p2, _mm_set_ss(-0.)) }
+    unsafe { _mm_xor_ps(p2, _mm_set_ss(-0.)) }
 }
 
 // [MethodImpl(MethodImplOptions.AggressiveInlining)]

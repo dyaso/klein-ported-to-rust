@@ -1,8 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{rcp_nr1,hi_dp_bc,rsqrt_nr1};
-
+use crate::detail::sse::{hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 pub type Element = __m128;
 
@@ -39,7 +38,14 @@ use std::fmt;
 
 impl fmt::Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Point\n x: {}\n y: {}\n z: {}\n w: {}\n",self.x(), self.y(), self.z(), self.w())
+        write!(
+            f,
+            "Point\n x: {}\n y: {}\n z: {}\n w: {}\n",
+            self.x(),
+            self.y(),
+            self.z(),
+            self.w()
+        )
     }
 }
 
@@ -57,13 +63,14 @@ impl From<__m128> for Point {
 }
 
 impl Point {
-
     /// Create a normalized direction
     pub fn direction(x: f32, y: f32, z: f32) -> Point {
         unsafe {
-            let mut p = Point{p3_ :_mm_set_ps(z, y, x, 0.)};
+            let mut p = Point {
+                p3_: _mm_set_ps(z, y, x, 0.),
+            };
             p.normalize();
-            return p
+            p
         }
     }
 
@@ -95,7 +102,7 @@ impl Point {
     pub fn normalized(self) -> Point {
         let mut out = Point::clone(&self);
         out.normalize();
-        return out
+        out
     }
 
     pub fn invert(&mut self) {
@@ -109,7 +116,7 @@ impl Point {
     pub fn inverse(self) -> Point {
         let mut out = Point::clone(&self);
         out.invert();
-        return out;
+        out
     }
 
     pub fn x(self) -> f32 {
@@ -117,7 +124,7 @@ impl Point {
         unsafe {
             _mm_store_ps(&mut out[0], self.p3_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e032(self) -> f32 {
@@ -129,7 +136,7 @@ impl Point {
         unsafe {
             _mm_store_ps(&mut out[0], self.p3_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e013(self) -> f32 {
@@ -141,7 +148,7 @@ impl Point {
         unsafe {
             _mm_store_ps(&mut out[0], self.p3_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e021(self) -> f32 {
@@ -154,7 +161,7 @@ impl Point {
         unsafe {
             _mm_store_ss(&mut out, self.p3_);
         }
-        return out
+        out
     }
 
     pub fn e123(self) -> f32 {
@@ -162,7 +169,7 @@ impl Point {
     }
 }
 
-use std::ops::{AddAssign, SubAssign, DivAssign, MulAssign};
+use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 
 impl AddAssign for Point {
     #[inline]
@@ -202,7 +209,7 @@ impl<T: Into<f32>> MulAssign<T> for Point {
     }
 }
 
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Div, Mul, Sub};
 
 impl Add for Point {
     type Output = Point;
@@ -225,10 +232,7 @@ impl<T: Into<f32>> Mul<T> for Point {
     type Output = Point;
     #[inline]
     fn mul(self, s: T) -> Self {
-        unsafe {
-            let c = Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s.into())));
-            return c;
-        }
+        unsafe { Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s.into()))) }
     }
 }
 
@@ -238,7 +242,7 @@ macro_rules! mul_scalar_by_point {
             type Output = Point;
             #[inline]
             fn mul(self, l: Point) -> Point {
-                return l * (self as f32);
+                l * (self as f32)
             }
         }
     };
@@ -253,9 +257,7 @@ impl<T: Into<f32>> Div<T> for Point {
     type Output = Point;
     #[inline]
     fn div(self, s: T) -> Self {
-        unsafe {
-            Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s.into()))))
-        }
+        unsafe { Point::from(_mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s.into())))) }
     }
 }
 
@@ -265,14 +267,14 @@ impl Neg for Point {
     /// Unary minus (leaves homogeneous coordinate untouched)
     #[inline]
     fn neg(self) -> Self::Output {
-        return Point::from(unsafe { _mm_xor_ps(self.p3_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) });
+        Point::from(unsafe { _mm_xor_ps(self.p3_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) })
     }
 }
 
 #[cfg(test)]
 mod tests {
     #![cfg(target_arch = "x86_64")]
-    
+
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }

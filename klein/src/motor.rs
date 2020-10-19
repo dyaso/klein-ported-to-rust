@@ -1,14 +1,14 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sandwich::{sw012, sw312_four, sw_mm_four, sw012_six, sw_mm_seven, sw312_six};
+use crate::detail::sandwich::{sw012, sw012_six, sw312_four, sw312_six, sw_mm_four, sw_mm_seven};
 use crate::detail::sse::{dp_bc, rcp_nr1, rsqrt_nr1}; // hi_dp, hi_dp_bc, };
 
 use crate::detail::exp_log::simd_exp;
 use crate::detail::geometric_product::gp_dl;
 
-use crate::util::ApplyOp;
-use crate::{Line, Plane, Point, Rotor, Translator, ApplyToMany};
+use crate::util::ApplyTo;
+use crate::{ApplyToMany, Line, Plane, Point, Rotor, Translator};
 
 /// \defgroup motor Motors
 ///
@@ -87,12 +87,16 @@ impl Motor {
             }
         }
     }
+
     /// Direct initialization from components. A more common way of creating a
     /// motor is to take a product between a rotor and a translator.
     /// The arguments coorespond to the multivector
     /// $a + b\mathbf{e}_{23} + c\mathbf{e}_{31} + d\mathbf{e}_{12} +\
     /// e\mathbf{e}_{01} + f\mathbf{e}_{02} + g\mathbf{e}_{03} +\
     /// h\mathbf{e}_{0123}$.
+
+    #[allow(clippy::too_many_arguments)] // i'm copying the c++ version!
+    #[allow(clippy::many_single_char_names)]
     pub fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32, g: f32, h: f32) -> Motor {
         unsafe {
             Motor {
@@ -123,7 +127,7 @@ impl Motor {
             &mut log_m.p2_,
         );
         simd_exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
-        return out;
+        out
     }
 
     pub fn from_rotor(r: Rotor) -> Motor {
@@ -200,7 +204,7 @@ impl Motor {
     pub fn normalized_motor(self) -> Self {
         let mut out = Motor::clone(&self);
         out.normalize();
-        return out;
+        out
     }
 
     /// Load motor data using two unaligned loads. This routine does *not*
@@ -244,7 +248,7 @@ impl Motor {
     pub fn inverse(self) -> Motor {
         let mut out = Motor::clone(&self);
         out.invert();
-        return out;
+        out
     }
 
     /// Constrains the motor to traverse the shortest arc
@@ -260,7 +264,7 @@ impl Motor {
     pub fn constrained(self) -> Motor {
         let mut out = Motor::clone(&self);
         out.constrain();
-        return out;
+        out
     }
 
     pub fn scalar(self) -> f32 {
@@ -268,14 +272,14 @@ impl Motor {
         unsafe {
             _mm_store_ss(&mut out, self.p1_);
         }
-        return out;
+        out
     }
     pub fn e12(self) -> f32 {
         let mut out = <[f32; 4]>::default();
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e21(self) -> f32 {
@@ -287,7 +291,7 @@ impl Motor {
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e13(self) -> f32 {
@@ -299,7 +303,7 @@ impl Motor {
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e32(self) -> f32 {
@@ -311,7 +315,7 @@ impl Motor {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e10(self) -> f32 {
@@ -323,7 +327,7 @@ impl Motor {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e20(self) -> f32 {
@@ -335,7 +339,7 @@ impl Motor {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e30(self) -> f32 {
@@ -347,16 +351,13 @@ impl Motor {
         unsafe {
             _mm_store_ss(&mut out, self.p2_);
         }
-        return out;
+        out
     }
 
     pub fn reverse(self) -> Motor {
         unsafe {
             let flip: __m128 = _mm_set_ps(-0., -0., -0., 0.);
-            return Motor::from_rotor_and_translator(
-                _mm_xor_ps(self.p1_, flip),
-                _mm_xor_ps(self.p2_, flip),
-            );
+            Motor::from_rotor_and_translator(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip))
         }
     }
 }
@@ -371,10 +372,7 @@ impl Neg for Motor {
         unsafe {
             let flip: __m128 = _mm_set1_ps(-0.);
 
-            return Self::from_rotor_and_translator(
-                _mm_xor_ps(self.p1_, flip),
-                _mm_xor_ps(self.p2_, flip),
-            );
+            Self::from_rotor_and_translator(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip))
         }
     }
 }
@@ -405,7 +403,7 @@ impl SubAssign for Motor {
 
 /// Motor uniform scale
 impl<T: Into<f32>> MulAssign<T> for Motor {
-//impl MulAssign<f32> for Motor {
+    //impl MulAssign<f32> for Motor {
     #[inline]
     fn mul_assign(&mut self, s: T) {
         unsafe {
@@ -416,27 +414,30 @@ impl<T: Into<f32>> MulAssign<T> for Motor {
     }
 }
 
- /// Motor uniform inverse scale
+/// Motor uniform inverse scale
 impl<T: Into<f32>> DivAssign<T> for Motor {
     #[inline]
     fn div_assign(&mut self, s: T) {
         unsafe {
             let vs: __m128 = rcp_nr1(_mm_set1_ps(s.into()));
-               self.p1_ = _mm_mul_ps(self.p1_, vs);
+            self.p1_ = _mm_mul_ps(self.p1_, vs);
             self.p2_ = _mm_mul_ps(self.p2_, vs);
         }
     }
 }
 
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Div, Mul, Sub};
 
 impl Add for Motor {
     type Output = Self;
     #[inline]
     fn add(self, rhs: Self) -> Self {
-        unsafe { Motor::from_rotor_and_translator
-                    (_mm_add_ps(self.p1_, rhs.p1_), 
-                        _mm_add_ps(self.p2_, rhs.p2_)) }
+        unsafe {
+            Motor::from_rotor_and_translator(
+                _mm_add_ps(self.p1_, rhs.p1_),
+                _mm_add_ps(self.p2_, rhs.p2_),
+            )
+        }
     }
 }
 
@@ -444,8 +445,12 @@ impl Sub for Motor {
     type Output = Self;
     #[inline]
     fn sub(self, rhs: Self) -> Self {
-        unsafe { Motor::from_rotor_and_translator(_mm_sub_ps(self.p1_, rhs.p1_), 
-            _mm_sub_ps(self.p2_, rhs.p2_)) }
+        unsafe {
+            Motor::from_rotor_and_translator(
+                _mm_sub_ps(self.p1_, rhs.p1_),
+                _mm_sub_ps(self.p2_, rhs.p2_),
+            )
+        }
     }
 }
 
@@ -467,9 +472,7 @@ impl<T: Into<f32>> Div<T> for Motor {
     fn div(self, s: T) -> Self {
         unsafe {
             let vs = rcp_nr1(_mm_set1_ps(s.into()));
-            Motor::from_rotor_and_translator(
-                _mm_mul_ps(self.p1_, vs),
-                _mm_mul_ps(self.p2_, vs))
+            Motor::from_rotor_and_translator(_mm_mul_ps(self.p1_, vs), _mm_mul_ps(self.p2_, vs))
         }
     }
 }
@@ -480,7 +483,7 @@ macro_rules! mul_scalar_by_motor {
             type Output = Motor;
             #[inline]
             fn mul(self, l: Motor) -> Motor {
-                return l * (self as f32);
+                l * (self as f32)
             }
         }
     };
@@ -489,8 +492,6 @@ macro_rules! mul_scalar_by_motor {
 mul_scalar_by_motor!(f32);
 mul_scalar_by_motor!(f64);
 mul_scalar_by_motor!(i32);
-
-
 
 // /// Convert this motor to a 3x4 column-major matrix representing this
 // /// motor's action as a linear transformation. The motor must be normalized
@@ -512,25 +513,22 @@ mul_scalar_by_motor!(i32);
 //     return out;
 // }
 
-
-
-
 impl PartialEq for Motor {
     fn eq(&self, other: &Motor) -> bool {
         unsafe {
             let p1_eq: __m128 = _mm_cmpeq_ps(self.p1_, other.p1_);
             let p2_eq: __m128 = _mm_cmpeq_ps(self.p2_, other.p2_);
             let eq: __m128 = _mm_and_ps(p1_eq, p2_eq);
-            return _mm_movemask_ps(eq) == 0xf;
+            _mm_movemask_ps(eq) == 0xf
         }
     }
 }
 
-impl ApplyOp<Plane> for Motor {
+impl ApplyTo<Plane> for Motor {
     /// Conjugates a plane $p$ with this motor and returns the result
     /// $mp\widetilde{m}$
     fn apply_to(self, p: Plane) -> Plane {
-        return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
+        Plane::from(sw012(true, p.p0_, self.p1_, self.p2_))
     }
 }
 
@@ -559,28 +557,28 @@ impl ApplyToMany<Plane> for Motor {
     }
 }
 
-impl ApplyOp<Point> for Motor {
+impl ApplyTo<Point> for Motor {
     /// Conjugates a point $p$ with this motor and returns the result
     /// $mp\widetilde{m}$.
     fn apply_to(self, p: Point) -> Point {
         if p.w() == 0. {
-            unsafe {
-                return Point::from(sw312_four(false, p.p3_, self.p1_, _mm_setzero_ps()))
-            }
+            // it's a Direction, an 'ideal' point at infinity
+            unsafe { Point::from(sw312_four(false, p.p3_, self.p1_, _mm_setzero_ps())) }
         } else {
-            return Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))
+            // it's just a regular point
+            Point::from(sw312_four(true, p.p3_, self.p1_, self.p2_))
         }
     }
 }
 
-        // Detail.sw312(false, &input.P3, P1, default, &p3, 1);
+// Detail.sw312(false, &input.P3, P1, default, &p3, 1);
 
 /// Conjugates a line $\ell$ with this motor and returns the result
 /// $m\ell \widetilde{m}$.
-impl ApplyOp<Line> for Motor {
+impl ApplyTo<Line> for Motor {
     fn apply_to(self, rhs: Line) -> Line {
         let (branch, ideal) = sw_mm_four(rhs.p1_, rhs.p2_, self.p1_, self.p2_);
-        return Line::from(branch, ideal);
+        Line::from(branch, ideal)
     }
 }
 
@@ -596,7 +594,7 @@ impl ApplyOp<Line> for Motor {
 impl ApplyToMany<Point> for Motor {
     fn apply_to_many(self, input: &[Point], output: &mut [Point], count: usize) {
         sw312_six(true, &input, self.p1_, self.p2_, output, count);
-        
+
         // unsafe {
         //     return Plane::from(sw012(true, p.p0_, self.p1_, self.p2_));
         // }
@@ -626,7 +624,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, Line, Motor, Plane, Point, Rotor, Translator};
+    use crate::{ApplyTo, Line, Motor, Plane, Point, Rotor, Translator};
 
     #[test]
     fn motor_plane() {
@@ -642,21 +640,19 @@ mod tests {
     use crate::ApplyToMany;
 
     #[test]
-    pub fn motor_plane_variadic()    {
+    pub fn motor_plane_variadic() {
         let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-        let ps: [Plane; 2] = [Plane::new(3., 2., 1., -1.), 
-                              Plane::new(3., 2., 1., -1.)];
+        let ps: [Plane; 2] = [Plane::new(3., 2., 1., -1.), Plane::new(3., 2., 1., -1.)];
         let mut ps2 = <[Plane; 2]>::default();
         m.apply_to_many(&ps, &mut ps2, 2);
 
-        for i in 0..2        {
+        for i in 0..2 {
             assert_eq!(ps2[i].x(), 78.);
             assert_eq!(ps2[i].y(), 60.);
             assert_eq!(ps2[i].z(), 54.);
             assert_eq!(ps2[i].d(), 358.);
         }
     }
-
 
     #[test]
     fn motor_point() {
@@ -670,15 +666,14 @@ mod tests {
     }
 
     #[test]
-    fn motor_point_variadic()    {
+    fn motor_point_variadic() {
         let m = Motor::new(1., 4., 3., 2., 5., 6., 7., 8.);
-        let ps: [Point; 2] = [Point::new(-1., 1., 2.), 
-                              Point::new(-1., 1., 2.)];
+        let ps: [Point; 2] = [Point::new(-1., 1., 2.), Point::new(-1., 1., 2.)];
         let mut ps2 = <[Point; 2]>::default();
 
         m.apply_to_many(&ps, &mut ps2, 2);
 
-        for i in 0..2        {
+        for i in 0..2 {
             assert_eq!(ps2[i].x(), -12.);
             assert_eq!(ps2[i].y(), -86.);
             assert_eq!(ps2[i].z(), -86.);
@@ -755,8 +750,10 @@ mod tests {
     fn motor_line_variadic() {
         let m = Motor::new(2., 4., 3., -1., -5., -2., 2., -3.);
         // a*e01 + b*e01 + c*e02 + d*e23 + e*e31 + f*e12
-        let ls: [Line; 2] = [Line::new(-1., 2., -3., -6., 5., 4.), 
-                             Line::new(-1., 2., -3., -6., 5., 4.)];
+        let ls: [Line; 2] = [
+            Line::new(-1., 2., -3., -6., 5., 4.),
+            Line::new(-1., 2., -3., -6., 5., 4.),
+        ];
         let mut ls2: [Line; 2] = [Line::default(), Line::default()];
 
         m.apply_to_many(&ls, &mut ls2, 2);

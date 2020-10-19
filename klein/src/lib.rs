@@ -17,12 +17,13 @@ mod util;
 
 pub use dual::Dual;
 pub use line::{Branch, IdealLine, Line};
+pub use matrices::{Mat3x4, Mat4x4};
 pub use motor::Motor;
 pub use plane::Plane;
 pub use point::{Element, Point};
 pub use rotor::{EulerAngles, Rotor};
 pub use translator::Translator;
-pub use util::{ApplyOp, ApplyToMany};
+pub use util::{ApplyTo, ApplyToMany};
 
 #[cfg(test)]
 mod tests {

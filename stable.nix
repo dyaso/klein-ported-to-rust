@@ -38,7 +38,8 @@ stdenv.mkDerivation {
   	    x11
 ];
   buildInputs = [
-    latest.rustChannels.nightly.rust
+    latest.rustChannels.stable.rust
+    #latest.rustChannels.nightly.rust
   	    xorg.libXi
   	    xorg.libXrandr
   	    xorg.libXcursor

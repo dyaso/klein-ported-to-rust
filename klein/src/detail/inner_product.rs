@@ -1,4 +1,4 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use super::sse::{hi_dp, hi_dp_ss};
@@ -14,7 +14,7 @@ use super::sse::{hi_dp, hi_dp_ss};
 pub fn dot00(a: __m128, b: __m128) -> __m128 {
     // a1 b1 + a2 b2 + a3 b3
     // p1_out =
-    return hi_dp(a, b);
+    hi_dp(a, b)
 }
 
 // The symmetric inner product on these two partitions commutes
@@ -45,13 +45,13 @@ pub fn dot03(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) {
 
 #[inline]
 pub fn dot11(a: __m128, b: __m128) -> __m128 {
-    unsafe { return _mm_xor_ps(_mm_set_ss(-0.), hi_dp_ss(a, b)) }
+    unsafe { _mm_xor_ps(_mm_set_ss(-0.), hi_dp_ss(a, b)) }
 }
 
 #[inline]
 pub fn dot33(a: __m128, b: __m128) -> __m128 {
     // -a0 b0
-    unsafe { return _mm_mul_ps(_mm_set_ss(-1.), _mm_mul_ss(a, b)) }
+    unsafe { _mm_mul_ps(_mm_set_ss(-1.), _mm_mul_ss(a, b)) }
 }
 
 // Point | Line
@@ -68,9 +68,9 @@ pub fn dot_ptl(a: __m128, b: __m128) -> __m128 {
         p0 = _mm_xor_ps(p0, _mm_set_ps(-0., -0., -0., 0.));
 
         if is_x86_feature_detected!("sse4.1") {
-            return _mm_blend_ps(p0, dp, 1);
+            _mm_blend_ps(p0, dp, 1)
         } else {
-            return _mm_add_ss(p0, dp);
+            _mm_add_ss(p0, dp)
         }
     }
 }
@@ -88,7 +88,7 @@ pub fn dot_pl_noflip(a: __m128, b: __m128, c: __m128) -> __m128 {
             p0,
             _mm_mul_ps(a, _mm_shuffle_ps(b, b, 120 /* 1, 3, 2, 0 */)),
         );
-        return _mm_sub_ss(_mm_shuffle_ps(p0, p0, 120 /* 1, 3, 2, 0 */), hi_dp_ss(a, c));
+        _mm_sub_ss(_mm_shuffle_ps(p0, p0, 120 /* 1, 3, 2, 0 */), hi_dp_ss(a, c))
     }
 }
 
@@ -105,7 +105,7 @@ pub fn dot_pl_flip(a: __m128, b: __m128, c: __m128) -> __m128 {
             p0,
             _mm_mul_ps(_mm_shuffle_ps(a, a, 120 /* 1, 3, 2, 0 */), b),
         );
-        return _mm_add_ss(_mm_shuffle_ps(p0, p0, 120 /* 1, 3, 2, 0 */), hi_dp_ss(a, c));
+        _mm_add_ss(_mm_shuffle_ps(p0, p0, 120 /* 1, 3, 2, 0 */), hi_dp_ss(a, c))
     }
 }
 
@@ -118,5 +118,5 @@ pub fn dot_pil_flip(a: __m128, c: __m128) -> __m128 {
 #[inline]
 pub fn dot_pil_noflip(a: __m128, c: __m128) -> __m128 {
     let p0 = hi_dp(a, c);
-    unsafe { return _mm_xor_ps(p0, _mm_set_ss(-0.)) }
+    unsafe { _mm_xor_ps(p0, _mm_set_ss(-0.)) }
 }

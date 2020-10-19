@@ -4,7 +4,6 @@ use std::arch::x86_64::*;
 use crate::detail::exterior_product::{ext00, ext02, ext03_false, ext03_true, ext_pb};
 use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
 
-
 use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 //use crate::plane::Plane;
 
@@ -37,7 +36,7 @@ use crate::{Branch, Dual, IdealLine, Line, Plane, Point};
 ///     // p2 lies at the intersection of p1 and l2.
 ///     kln::point p2 = p1 ^ l2;
 /// ```
-use std::ops::BitXor;   // |
+use std::ops::BitXor; // |
 
 impl BitXor<Plane> for Plane {
     type Output = Line;
@@ -45,7 +44,7 @@ impl BitXor<Plane> for Plane {
     fn bitxor(self, rhs: Plane) -> Self::Output {
         let mut out = Line::default();
         ext00(self.p0_, rhs.p0_, &mut out.p1_, &mut out.p2_);
-        return out;
+        out
     }
 }
 
@@ -55,7 +54,7 @@ impl BitXor<Branch> for Plane {
     fn bitxor(self, rhs: Branch) -> Self::Output {
         let mut out = Point::default();
         out.p3_ = ext_pb(self.p0_, rhs.p1_);
-        return out;
+        out
     }
 }
 impl BitXor<Plane> for Branch {
@@ -76,7 +75,7 @@ impl BitXor<Line> for Plane {
         unsafe {
             out.p3_ = _mm_add_ps(tmp, out.p3_);
         }
-        return out
+        out
     }
 }
 impl BitXor<Plane> for Line {
@@ -96,7 +95,7 @@ impl BitXor<Point> for Plane {
         unsafe {
             _mm_store_ss(&mut out.q, tmp);
         }
-        return out;
+        out
     }
 }
 
@@ -109,7 +108,7 @@ impl BitXor<Plane> for Point {
         unsafe {
             _mm_store_ss(&mut out.q, tmp);
         }
-        return out;
+        out
     }
 }
 
@@ -117,9 +116,7 @@ impl BitXor<IdealLine> for Plane {
     type Output = Point;
     #[inline]
     fn bitxor(self, rhs: IdealLine) -> Self::Output {
-        let mut out = Point::default();
-        out.p3_ = ext02(self.p0_, rhs.p2_);
-        return out;
+        Point::from(ext02(self.p0_, rhs.p2_))
     }
 }
 impl BitXor<Plane> for IdealLine {
@@ -139,7 +136,7 @@ impl BitXor<IdealLine> for Branch {
         unsafe {
             _mm_store_ss(&mut out.q, tmp);
         }
-        return out;
+        out
     }
 }
 impl BitXor<Branch> for IdealLine {
@@ -161,10 +158,10 @@ impl BitXor<Line> for Line {
             dp = hi_dp_ss(rhs.p1_, self.p2_);
             let mut out2 = f32::default();
             _mm_store_ss(&mut out2, dp);
-            return Dual {
+            Dual {
                 p: 0.,
                 q: out1 + out2,
-            };
+            }
         }
     }
 }
@@ -173,14 +170,14 @@ impl BitXor<IdealLine> for Line {
     type Output = Dual;
     #[inline]
     fn bitxor(self, rhs: IdealLine) -> Self::Output {
-        return Branch::from(self.p1_) ^ rhs;
+        Branch::from(self.p1_) ^ rhs
     }
 }
 impl BitXor<Line> for IdealLine {
     type Output = Dual;
     #[inline]
     fn bitxor(self, rhs: Line) -> Self::Output {
-        return rhs ^ self;
+        rhs ^ self
     }
 }
 
@@ -188,7 +185,7 @@ impl BitXor<Branch> for Line {
     type Output = Dual;
     #[inline]
     fn bitxor(self, rhs: Branch) -> Self::Output {
-        return IdealLine::from(self.p2_) ^ rhs;
+        IdealLine::from(self.p2_) ^ rhs
     }
 }
 
@@ -196,7 +193,7 @@ impl BitXor<Line> for Branch {
     type Output = Dual;
     #[inline]
     fn bitxor(self, rhs: Line) -> Self::Output {
-        return rhs ^ self;
+        rhs ^ self
     }
 }
 

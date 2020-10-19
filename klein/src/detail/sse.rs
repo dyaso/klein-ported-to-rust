@@ -1,6 +1,6 @@
 // use simdeez::*;
 
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 // DP high components and caller ignores returned high components
@@ -21,7 +21,7 @@ pub fn hi_dp_ss(a: __m128, b: __m128) -> __m128 {
         res = _mm_add_ps(sum, _mm_unpacklo_ps(res, res));
 
         // (1 + 2 + 3, _, _, _)
-        return _mm_movehl_ps(res, res);
+        _mm_movehl_ps(res, res)
     }
 }
 
@@ -37,7 +37,7 @@ pub fn rcp_nr1(a: __m128) -> __m128 {
     unsafe {
         let xn: __m128 = _mm_rcp_ps(a);
         let axn: __m128 = _mm_mul_ps(a, xn);
-        return _mm_mul_ps(xn, _mm_sub_ps(_mm_set1_ps(2.0), axn));
+        _mm_mul_ps(xn, _mm_sub_ps(_mm_set1_ps(2.0), axn))
     }
 }
 
@@ -58,48 +58,38 @@ pub fn rsqrt_nr1(a: __m128) -> __m128 {
         let mut axn2 = _mm_mul_ps(xn, xn);
         axn2 = _mm_mul_ps(a, axn2);
         let xn3 = _mm_sub_ps(_mm_set1_ps(3.0), axn2);
-        return _mm_mul_ps(_mm_mul_ps(_mm_set1_ps(0.5), xn), xn3);
+        _mm_mul_ps(_mm_mul_ps(_mm_set1_ps(0.5), xn), xn3)
     }
 }
 
 // Sqrt Newton-Raphson is evaluated in terms of rsqrt_nr1
 #[inline]
 pub fn sqrt_nr1(a: __m128) -> __m128 {
-    unsafe {
-        return _mm_mul_ps(a, rsqrt_nr1(a));
-    }
+    unsafe { _mm_mul_ps(a, rsqrt_nr1(a)) }
 }
 
 #[cfg(target_feature = "sse4.1")]
 #[inline]
 pub fn hi_dp(a: __m128, b: __m128) -> __m128 {
-    unsafe {
-        return _mm_dp_ps(a, b, 0b11100001);
-    }
+    unsafe { _mm_dp_ps(a, b, 0b11100001) }
 }
 
 #[cfg(target_feature = "sse4.1")]
 #[inline]
 pub fn hi_dp_bc(a: __m128, b: __m128) -> __m128 {
-    unsafe {
-        return _mm_dp_ps(a, b, 0b11101111);
-    }
+    unsafe { _mm_dp_ps(a, b, 0b11101111) }
 }
 
 #[cfg(target_feature = "sse4.1")]
 #[inline]
 pub fn dp(a: __m128, b: __m128) -> __m128 {
-    unsafe {
-        return _mm_dp_ps(a, b, 0b11110001);
-    }
+    unsafe { _mm_dp_ps(a, b, 0b11110001) }
 }
 
 #[cfg(target_feature = "sse4.1")]
 #[inline]
 pub fn dp_bc(a: __m128, b: __m128) -> __m128 {
-    unsafe {
-        return _mm_dp_ps(a, b, 0xff);
-    }
+    unsafe { _mm_dp_ps(a, b, 0xff) }
 }
 
 #[cfg(not(target_feature = "sse4.1"))]
@@ -123,7 +113,7 @@ pub fn hi_dp(a: __m128, b: __m128) -> __m128 {
         // (1 + 2 + 3, _, _, _)
         out = _mm_movehl_ps(out, out);
 
-        return _mm_and_ps(out, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
+        _mm_and_ps(out, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)))
     }
 }
 
@@ -144,7 +134,7 @@ pub fn hi_dp_bc(a: __m128, b: __m128) -> __m128 {
         out = _mm_add_ps(sum, _mm_unpacklo_ps(out, out));
 
         // port comment: see https://github.com/Ziriax/KleinSharp/blob/master/KleinSharp.ConstSwizzleTool/Program.cs
-        return _mm_shuffle_ps(out, out, (2 << 6) | (2 << 4) | (2 << 2) | 2);
+        _mm_shuffle_ps(out, out, (2 << 6) | (2 << 4) | (2 << 2) | 2)
     }
 }
 
@@ -159,7 +149,7 @@ pub fn dp(a: __m128, b: __m128) -> __m128 {
         // = (a1 b1 + a2 b2, _, a3 b3, 0)
         out = _mm_add_ps(hi, out);
         out = _mm_add_ss(out, _mm_movehl_ps(hi, out));
-        return _mm_and_ps(out, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)));
+        _mm_and_ps(out, _mm_castsi128_ps(_mm_set_epi32(0, 0, 0, -1)))
     }
 }
 
@@ -176,7 +166,7 @@ pub fn dp_bc(a: __m128, b: __m128) -> __m128 {
         out = _mm_add_ss(out, _mm_movehl_ps(hi, out));
         // port comment: see https://github.com/Ziriax/KleinSharp/blob/master/KleinSharp.ConstSwizzleTool/Program.cs
         //	    return KLN_SWIZZLE(out, 0, 0, 0, 0);
-        return _mm_shuffle_ps(out, out, (0 << 6) | (0 << 4) | (0 << 2) | 0);
+        _mm_shuffle_ps(out, out, 0)
     }
 }
 

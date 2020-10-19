@@ -53,7 +53,7 @@ impl BitOr<Plane> for Plane {
         unsafe {
             _mm_store_ss(&mut out, s);
         }
-        return out;
+        out
     }
 }
 
@@ -61,7 +61,7 @@ impl BitOr<Line> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-        return Plane::from(dot_pl_noflip(self.p0_, rhs.p1_, rhs.p2_));
+        Plane::from(dot_pl_noflip(self.p0_, rhs.p1_, rhs.p2_))
     }
 }
 
@@ -69,7 +69,7 @@ impl BitOr<Plane> for Line {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-        return Plane::from(dot_pl_flip(rhs.p0_, self.p1_, self.p2_));
+        Plane::from(dot_pl_flip(rhs.p0_, self.p1_, self.p2_))
     }
 }
 
@@ -77,7 +77,7 @@ impl BitOr<IdealLine> for Plane {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: IdealLine) -> Self::Output {
-        return Plane::from(dot_pil_noflip(self.p0_, rhs.p2_));
+        Plane::from(dot_pil_noflip(self.p0_, rhs.p2_))
     }
 }
 
@@ -85,7 +85,7 @@ impl BitOr<Plane> for IdealLine {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-        return Plane::from(dot_pil_flip(rhs.p0_, self.p2_));
+        Plane::from(dot_pil_flip(rhs.p0_, self.p2_))
     }
 }
 
@@ -95,7 +95,7 @@ impl BitOr<Point> for Plane {
     fn bitor(self, rhs: Point) -> Self::Output {
         let mut out = Line::default();
         dot03(self.p0_, rhs.p3_, &mut out.p1_, &mut out.p2_);
-        return out;
+        out
     }
 }
 
@@ -103,7 +103,7 @@ impl BitOr<Plane> for Point {
     type Output = Line;
     #[inline]
     fn bitor(self, rhs: Plane) -> Self::Output {
-        return rhs | self;
+        rhs | self
     }
 }
 
@@ -115,7 +115,7 @@ impl BitOr<Line> for Line {
         unsafe {
             _mm_store_ss(&mut out, dot11(self.p1_, rhs.p1_));
         }
-        return out;
+        out
     }
 }
 
@@ -123,7 +123,7 @@ impl BitOr<Line> for Point {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Line) -> Self::Output {
-        return Plane::from(dot_ptl(self.p3_, rhs.p1_));
+        Plane::from(dot_ptl(self.p3_, rhs.p1_))
     }
 }
 
@@ -131,7 +131,7 @@ impl BitOr<Point> for Line {
     type Output = Plane;
     #[inline]
     fn bitor(self, rhs: Point) -> Self::Output {
-        return rhs | self;
+        rhs | self
     }
 }
 
@@ -141,13 +141,13 @@ impl BitOr<Point> for Point {
     fn bitor(self, rhs: Point) -> Self::Output {
         let mut out: f32 = 0.;
         unsafe { _mm_store_ss(&mut out, dot33(self.p3_, rhs.p3_)) }
-        return out;
+        out
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
+    #![cfg(target_arch = "x86_64")]
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)

@@ -1,9 +1,9 @@
-use crate::detail::sandwich::{sw00, sw10, sw20, sw30};
-use crate::detail::sse::{hi_dp, hi_dp_bc, rsqrt_nr1, sqrt_nr1, rcp_nr1};
-use crate::{Line, Point};
-
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use crate::detail::sandwich::{sw00, sw10, sw20, sw30};
+use crate::detail::sse::{hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1, sqrt_nr1};
+use crate::{Line, Point};
 
 /// In projective geometry, planes are the fundamental element through which all
 /// other entities are constructed. Lines are the meet of two planes, and points
@@ -18,15 +18,20 @@ pub struct Plane {
     pub p0_: __m128,
 }
 
-
 use std::fmt;
 
 impl fmt::Display for Plane {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Plane\te0\te1\te2\te3\n\t{}\t{}\t{}\t{}", self.e0(), self.e1(), self.e2(), self.e3())
+        write!(
+            f,
+            "Plane\te0\te1\te2\te3\n\t{}\t{}\t{}\t{}",
+            self.e0(),
+            self.e1(),
+            self.e2(),
+            self.e3()
+        )
     }
 }
-
 
 // might be better to use a type alias instead? https://doc.rust-lang.org/reference/items/type-aliases.html
 // type Plane = __m128
@@ -94,7 +99,7 @@ impl Plane {
             self.p0_ = _mm_mul_ps(inv_norm, self.p0_);
         }
     }
-    
+
     /// Unaligned load of data. The `data` argument should point to 4 floats
     /// corresponding to the
     /// `(d, a, b, c)` components of the plane multivector where `d` occupies
@@ -116,7 +121,7 @@ impl Plane {
         //    	let out = Plane::from(self);
         let mut out = self;
         out.normalize();
-        return out;
+        out
     }
 
     /// Compute the plane norm, which is often used to compute distances
@@ -130,7 +135,7 @@ impl Plane {
         unsafe {
             _mm_store_ss(&mut out, sqrt_nr1(hi_dp(self.p0_, self.p0_)));
         }
-        return out;
+        out
     }
 
     pub fn invert(&mut self) {
@@ -144,15 +149,13 @@ impl Plane {
     pub fn inverse(self) -> Plane {
         let mut out = self;
         out.invert();
-        return out;
+        out
     }
 }
 
 impl PartialEq for Plane {
     fn eq(&self, other: &Plane) -> bool {
-        unsafe {
-            return _mm_movemask_ps(_mm_cmpeq_ps(self.p0_, other.p0_)) == 0b1111;
-        }
+        unsafe { _mm_movemask_ps(_mm_cmpeq_ps(self.p0_, other.p0_)) == 0b1111 }
     }
 }
 
@@ -164,12 +167,12 @@ impl Plane {
                 _mm_andnot_ps(_mm_set1_ps(-0.0), _mm_sub_ps(self.p0_, other.p0_)),
                 eps,
             );
-            return _mm_movemask_ps(cmp) == 0b1111;
+            _mm_movemask_ps(cmp) == 0b1111
         }
     }
 }
 
-use std::ops::{AddAssign, SubAssign, DivAssign, MulAssign};
+use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 
 impl AddAssign for Plane {
     #[inline]
@@ -207,7 +210,7 @@ impl<T: Into<f32>> MulAssign<T> for Plane {
     }
 }
 
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Div, Mul, Sub};
 
 impl Add for Plane {
     type Output = Plane;
@@ -229,10 +232,7 @@ impl<T: Into<f32>> Mul<T> for Plane {
     type Output = Plane;
     #[inline]
     fn mul(self, s: T) -> Self {
-        unsafe {
-            let c = Plane::from(_mm_mul_ps(self.p0_, _mm_set1_ps(s.into())));
-            return c;
-        }
+        unsafe { Plane::from(_mm_mul_ps(self.p0_, _mm_set1_ps(s.into()))) }
     }
 }
 
@@ -242,7 +242,7 @@ macro_rules! mul_scalar_by_point {
             type Output = Plane;
             #[inline]
             fn mul(self, l: Plane) -> Plane {
-                return l * (self as f32);
+                l * (self as f32)
             }
         }
     };
@@ -256,9 +256,7 @@ impl<T: Into<f32>> Div<T> for Plane {
     type Output = Plane;
     #[inline]
     fn div(self, s: T) -> Self {
-        unsafe {
-            Plane::from(_mm_mul_ps(self.p0_, rcp_nr1(_mm_set1_ps(s.into()))))
-        }
+        unsafe { Plane::from(_mm_mul_ps(self.p0_, rcp_nr1(_mm_set1_ps(s.into())))) }
     }
 }
 
@@ -268,13 +266,13 @@ impl Neg for Plane {
     /// Unary minus (leaves homogeneous coordinate untouched)
     #[inline]
     fn neg(self) -> Self::Output {
-        return Plane::from(unsafe { _mm_xor_ps(self.p0_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) });
+        Plane::from(unsafe { _mm_xor_ps(self.p0_, _mm_set_ps(-0.0, -0.0, -0.0, 0.0)) })
     }
 }
 
-use crate::util::ApplyOp;
+use crate::util::ApplyTo;
 
-impl ApplyOp<Plane> for Plane {
+impl ApplyTo<Plane> for Plane {
     /// Reflect another plane $p_2$ through this plane $p_1$. The operation
     /// performed via this call operator is an optimized routine equivalent to
     /// the expression $p_1 p_2 p_1$.
@@ -285,11 +283,11 @@ impl ApplyOp<Plane> for Plane {
     fn apply_to(self, p: Plane) -> Plane {
         let mut out = self;
         sw00(self.p0_, p.p0_, &mut out.p0_);
-        return out;
+        out
     }
 }
 
-impl ApplyOp<Line> for Plane {
+impl ApplyTo<Line> for Plane {
     /// Reflect line $\ell$ through this plane $p$. The operation
     /// performed via this call operator is an optimized routine equivalent to
     /// the expression $p \ell p$.
@@ -300,19 +298,19 @@ impl ApplyOp<Line> for Plane {
         unsafe {
             out.p2_ = _mm_add_ps(out.p2_, p2_tmp);
         }
-        return out;
+        out
 
         // sw00(self.p0_, p.p0_, &mut out.p0_);
         // return out;
     }
 }
 
-impl ApplyOp<Point> for Plane {
+impl ApplyTo<Point> for Plane {
     /// Reflect the point $P$ through this plane $p$. The operation
     /// performed via this call operator is an optimized routine equivalent to
     /// the expression $p P p$.
     fn apply_to(self, p: Point) -> Point {
-        return Point::from(sw30(self.p0_, p.p3_));
+        Point::from(sw30(self.p0_, p.p3_))
     }
 }
 
@@ -322,7 +320,7 @@ impl Plane {
         unsafe {
             _mm_store_ps(&mut out[0], self.p0_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e1(self) -> f32 {
@@ -334,7 +332,7 @@ impl Plane {
         unsafe {
             _mm_store_ps(&mut out[0], self.p0_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e2(self) -> f32 {
@@ -346,7 +344,7 @@ impl Plane {
         unsafe {
             _mm_store_ps(&mut out[0], self.p0_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e3(self) -> f32 {
@@ -358,7 +356,7 @@ impl Plane {
         unsafe {
             _mm_store_ss(&mut out, self.p0_);
         }
-        return out;
+        out
     }
 
     pub fn e0(self) -> f32 {
@@ -374,7 +372,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::plane::ApplyOp;
+    use crate::plane::ApplyTo;
     use crate::{Line, Plane, Point};
 
     #[test]

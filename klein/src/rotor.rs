@@ -1,10 +1,10 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
 use crate::detail::sandwich::{sw012, sw_mm_three, sw_mm_two};
 
-use crate::util::ApplyOp;
-use crate::{Branch, Line, Point};
+use crate::util::ApplyTo;
+use crate::{Branch, Line, Plane, Point};
 
 #[derive(Default)]
 pub struct EulerAngles {
@@ -15,11 +15,7 @@ pub struct EulerAngles {
 
 impl EulerAngles {
     pub fn new(roll: f32, pitch: f32, yaw: f32) -> EulerAngles {
-        EulerAngles {
-            roll: roll,
-            pitch: pitch,
-            yaw: yaw,
-        }
+        EulerAngles { roll, pitch, yaw }
     }
 }
 
@@ -83,7 +79,7 @@ impl Rotor {
         unsafe {
             let mut p1_ = _mm_set_ps(z, y, x, f32::cos(half));
             p1_ = _mm_mul_ps(p1_, _mm_set_ps(scale, scale, scale, 1.));
-            return Rotor::from(p1_)
+            Rotor::from(p1_)
         }
     }
 
@@ -122,7 +118,7 @@ impl Rotor {
                 cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
             );
 
-            return Rotor::from(p1_).normalized()
+            Rotor::from(p1_).normalized()
         }
     }
 
@@ -138,7 +134,7 @@ impl Rotor {
     pub fn constrained(self) -> Rotor {
         let mut out = Rotor::clone(&self);
         out.constrain();
-        return out;
+        out
     }
 
     pub fn as_euler_angles(self) -> EulerAngles {
@@ -147,11 +143,14 @@ impl Rotor {
 
         let mut ea = EulerAngles::default();
 
-
         #[repr(align(16))]
-        struct ArrayAlignedTo16ByteBoundary {mem: [f32; 4] };
+        struct ArrayAlignedTo16ByteBoundary {
+            mem: [f32; 4],
+        };
 
-        let mut buf = ArrayAlignedTo16ByteBoundary{mem: <[f32; 4]>::default()};
+        let mut buf = ArrayAlignedTo16ByteBoundary {
+            mem: <[f32; 4]>::default(),
+        };
         self.store(&mut buf.mem[0]);
         let test = buf.mem[1] * buf.mem[2] + buf.mem[3] * buf.mem[0];
 
@@ -187,10 +186,10 @@ impl Rotor {
             2. * (buf.mem[0] * buf.mem[3] + buf.mem[1] * buf.mem[2]),
             1. - 2. * (buf2_2 + buf3_2),
         );
-        return ea;
+        ea
     }
 
-// rotor normalization is done in Branch in Line.rs
+    // rotor normalization is done in Branch in Line.rs
 
     // pub fn normalize_rotor(&mut self) {
     //     unsafe {
@@ -208,49 +207,55 @@ impl Rotor {
 
 impl PartialEq for Rotor {
     fn eq(&self, other: &Rotor) -> bool {
-        unsafe { return _mm_movemask_ps(_mm_cmpeq_ps(self.p1_, other.p1_)) == 0b1111 }
+        unsafe { _mm_movemask_ps(_mm_cmpeq_ps(self.p1_, other.p1_)) == 0b1111 }
     }
 }
 
-
-impl ApplyOp<Branch> for Rotor {
+impl ApplyTo<Branch> for Rotor {
     fn apply_to(self, rhs: Branch) -> Branch {
-        Branch{p1_: sw_mm_two(rhs.p1_, self.p1_)}
+        Branch {
+            p1_: sw_mm_two(rhs.p1_, self.p1_),
+        }
     }
 }
 
 //        [[nodiscard]] line KLN_VEC_CALL operator()(line const& l) const noexcept
-impl ApplyOp<Line> for Rotor {
+impl ApplyTo<Line> for Rotor {
     /// Conjugates a line $\ell$ with this rotor and returns the result
     /// $r\ell \widetilde{r}$.
     fn apply_to(self, l: Line) -> Line {
         let (branch, ideal) = sw_mm_three(l.p1_, l.p2_, self.p1_);
-        return Line::from(branch, ideal);
+        Line::from(branch, ideal)
     }
 }
 
-impl ApplyOp<Point> for Rotor {
+impl ApplyTo<Point> for Rotor {
     /// Conjugates a point $p$ with this rotor and returns the result
     /// $rp\widetilde{r}$.
     fn apply_to(self, p: Point) -> Point {
         // NOTE: Conjugation of a plane and point with a rotor is identical
-        unsafe { return Point::from(sw012(false, p.p3_, self.p1_, _mm_setzero_ps())) }
+        unsafe { Point::from(sw012(false, p.p3_, self.p1_, _mm_setzero_ps())) }
     }
 }
 
-// impl From<&EulerAngles> for Rotor {
-// }
+impl ApplyTo<Plane> for Rotor {
+    /// Conjugates a plane $p$ with this rotor and returns the result
+    /// $rp\widetilde{r}$.
+    fn apply_to(self, p: Plane) -> Plane {
+        unsafe { Plane::from(sw012(false, p.p0_, self.p1_, _mm_setzero_ps())) }
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    #[cfg(target_arch = "x86_64")]
+    #![cfg(target_arch = "x86_64")]
     use std::arch::x86_64::*;
 
     fn approx_eq(a: f32, b: f32) {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyOp, EulerAngles, Line, Point, Rotor};
+    use crate::{ApplyTo, EulerAngles, Line, Point, Rotor};
 
     #[test]
     fn rotor_line() {
@@ -308,15 +313,19 @@ mod tests {
         let r2 = Rotor::from_euler_angles(&ea);
 
         #[repr(align(16))]
-        struct ArrayAlignedTo16ByteBoundary {mem: [f32; 8] };
+        struct ArrayAlignedTo16ByteBoundary {
+            mem: [f32; 8],
+        };
 
-        let mut buf = ArrayAlignedTo16ByteBoundary{mem: <[f32; 8]>::default()};
+        let mut buf = ArrayAlignedTo16ByteBoundary {
+            mem: <[f32; 8]>::default(),
+        };
         //let mut buf = <[f32; 8]>::default();
 
         r.store(&mut buf.mem[0]);
         r2.store(&mut buf.mem[4]);
-        for i in 0..4  {
-            approx_eq(buf.mem[i], buf.mem[i+4]);
+        for i in 0..4 {
+            approx_eq(buf.mem[i], buf.mem[i + 4]);
         }
     }
 

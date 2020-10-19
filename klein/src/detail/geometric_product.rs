@@ -1,7 +1,7 @@
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp, rcp_nr1};//hi_dp, hi_dp_bc, hi_dp_ss, rsqrt_nr1
+use crate::detail::sse::{dp, rcp_nr1}; //hi_dp, hi_dp_bc, hi_dp_ss, rsqrt_nr1
 
 // Purpose: Define functions of the form gpAB where A and B are partition
 // indices. Each function so-defined computes the geometric product using vector
@@ -212,9 +212,9 @@ pub fn gp33(a: __m128, b: __m128) -> __m128 {
         tmp = _mm_mul_ps(tmp, rcp_nr1(ss));
 
         if is_x86_feature_detected!("sse4.1") {
-            return _mm_blend_ps(tmp, _mm_setzero_ps(), 1);
+            _mm_blend_ps(tmp, _mm_setzero_ps(), 1)
         } else {
-            return _mm_and_ps(tmp, _mm_castsi128_ps(_mm_set_epi32(-1, -1, -1, 0)));
+            _mm_and_ps(tmp, _mm_castsi128_ps(_mm_set_epi32(-1, -1, -1, 0)))
         }
     }
 }
@@ -300,7 +300,7 @@ pub fn gp_rt(flip: bool, a: __m128, b: __m128) -> __m128 {
             );
         }
 
-        return p2;
+        p2
     }
 }
 
@@ -315,7 +315,7 @@ pub fn gp12(flip: bool, a: __m128, b: __m128) -> __m128 {
                 _mm_mul_ps(a, _mm_shuffle_ps(b, b, 0 /* 0, 0, 0, 0 */)),
             ),
         );
-        return p2;
+        p2
     }
 }
 
@@ -393,6 +393,7 @@ pub fn gp_ll(a: __m128, d: __m128, b: __m128, c: __m128, p1: &mut __m128, p2: &m
 
 // Optimized motor * motor operation
 #[inline]
+#[allow(clippy::many_single_char_names)]
 pub fn gp_mm(a: __m128, b: __m128, c: __m128, d: __m128, e: &mut __m128, f: &mut __m128) {
     unsafe {
         // (a0 c0 - a1 c1 - a2 c2 - a3 c3) +

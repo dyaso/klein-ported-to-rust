@@ -1,7 +1,7 @@
-use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
-
-#[cfg(target_arch = "x86_64")]
+#![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
+
+use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 /// Klein provides three line classes: "line", "branch", and "ideal_line". The
 /// line class represents a full six-coordinate bivector. The branch contains
@@ -46,7 +46,7 @@ impl IdealLine {
         unsafe {
             _mm_store_ss(&mut out, dp);
         }
-        return out;
+        out
     }
 
     pub fn ideal_norm(self) -> f32 {
@@ -110,7 +110,7 @@ impl Sub for IdealLine {
 
 /// Ideal line uniform scale
 impl<T: Into<f32>> Mul<T> for IdealLine {
-// impl Mul<f32> for IdealLine {
+    // impl Mul<f32> for IdealLine {
     type Output = Self;
     #[inline]
     fn mul(self, s: T) -> Self {
@@ -121,7 +121,7 @@ impl Mul<IdealLine> for f32 {
     type Output = IdealLine;
     #[inline]
     fn mul(self, p: IdealLine) -> IdealLine {
-        return p * self;
+        p * self
     }
 }
 // impl Mul<f64> for IdealLine {
@@ -135,7 +135,7 @@ impl Mul<IdealLine> for f64 {
     type Output = IdealLine;
     #[inline]
     fn mul(self, p: IdealLine) -> IdealLine {
-        return p * self as f32;
+        p * self as f32
     }
 }
 // impl Mul<i32> for IdealLine {
@@ -149,7 +149,7 @@ impl Mul<IdealLine> for i32 {
     type Output = IdealLine;
     #[inline]
     fn mul(self, p: IdealLine) -> IdealLine {
-        return p * self as f32;
+        p * self as f32
     }
 }
 
@@ -182,7 +182,7 @@ impl IdealLine {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e10(self) -> f32 {
@@ -194,7 +194,7 @@ impl IdealLine {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e20(self) -> f32 {
@@ -206,7 +206,7 @@ impl IdealLine {
         unsafe {
             _mm_store_ps(&mut out[0], self.p2_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e30(self) -> f32 {
@@ -301,7 +301,7 @@ impl Branch {
         unsafe {
             _mm_store_ss(&mut out, dp);
         }
-        return out;
+        out
     }
 
     /// Returns the square root of the quantity produced by `squared_norm`.
@@ -328,7 +328,7 @@ impl Branch {
     pub fn normalized(self) -> Self {
         let mut out = Self::from(self.p1_);
         out.normalize();
-        return out
+        out
     }
 
     pub fn invert(&mut self) {
@@ -343,7 +343,7 @@ impl Branch {
     pub fn inverse(self) -> Branch {
         let mut out = Branch::from(self.p1_);
         out.invert();
-        return out;
+        out
     }
 }
 
@@ -435,7 +435,7 @@ impl Mul<Branch> for f32 {
     type Output = Branch;
     #[inline]
     fn mul(self, p: Branch) -> Branch {
-        return p * self;
+        p * self
     }
 }
 
@@ -443,7 +443,7 @@ impl Mul<Branch> for f64 {
     type Output = Branch;
     #[inline]
     fn mul(self, p: Branch) -> Branch {
-        return p * self as f32;
+        p * self as f32
     }
 }
 
@@ -451,7 +451,7 @@ impl Mul<Branch> for i32 {
     type Output = Branch;
     #[inline]
     fn mul(self, p: Branch) -> Branch {
-        return p * self as f32;
+        p * self as f32
     }
 }
 
@@ -477,7 +477,7 @@ impl Branch {
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[3];
+        out[3]
     }
 
     pub fn e21(self) -> f32 {
@@ -493,7 +493,7 @@ impl Branch {
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[2];
+        out[2]
     }
 
     pub fn e13(self) -> f32 {
@@ -509,7 +509,7 @@ impl Branch {
         unsafe {
             _mm_store_ps(&mut out[0], self.p1_);
         }
-        return out[1];
+        out[1]
     }
 
     pub fn e32(self) -> f32 {
@@ -527,7 +527,7 @@ impl Branch {
         unsafe {
             _mm_store_ss(&mut out, self.p1_);
         }
-        return out;
+        out
     }
 
     /// Reversion operator
@@ -548,29 +548,6 @@ impl Neg for Branch {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // p1: (1, e12, e31, e23)
 // p2: (e0123, e01, e02, e03)
 
@@ -588,26 +565,37 @@ use std::fmt;
 
 impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Line\n// p1: (1, e23, e31, e12)\n// p2: (e01, e02, e03, e0123)\n
-\t{}\t{}\t{}\t{}\n\t{}\t{}\t{}\t{}",self.scalar(), self.e23(), self.e31(), self.e12(), self.e01(), self.e02(), self.e03(), self.e0123())
+        write!(
+            f,
+            "Line\n// p1: (1, e23, e31, e12)\n// p2: (e01, e02, e03, e0123)\n
+\t{}\t{}\t{}\t{}\n\t{}\t{}\t{}\t{}",
+            self.scalar(),
+            self.e23(),
+            self.e31(),
+            self.e12(),
+            self.e01(),
+            self.e02(),
+            self.e03(),
+            self.e0123()
+        )
     }
 }
 
 impl Line {
-//    pub fn default() -> Line {Line {p1_:_mm_setzero_ps(),p2_:_mm_setzero_ps()}}
+    //    pub fn default() -> Line {Line {p1_:_mm_setzero_ps(),p2_:_mm_setzero_ps()}}
     pub fn scalar(self) -> f32 {
         let mut out: f32 = 0.;
         unsafe {
             _mm_store_ss(&mut out, self.p1_);
         }
-        return out;
+        out
     }
     pub fn e0123(self) -> f32 {
         let mut out: f32 = 0.;
         unsafe {
             _mm_store_ss(&mut out, self.p2_);
         }
-        return out;
+        out
     }
 
     /// A line is specifed by 6 coordinates which correspond to the line's
@@ -618,6 +606,7 @@ impl Line {
     ///
     /// $$a\mathbf{e}_{01} + b\mathbf{e}_{02} + c\mathbf{e}_{03} +\
     /// d\mathbf{e}_{23} + e\mathbf{e}_{31} + f\mathbf{e}_{12}$$
+    #[allow(clippy::many_single_char_names)]
     pub fn new(a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Line {
         unsafe {
             Line {
@@ -683,7 +672,7 @@ impl Line {
         unsafe {
             _mm_store_ss(&mut out, dp);
         }
-        return out;
+        out
     }
 
     /// Normalize a line such that $\ell^2 = -1$.
@@ -711,7 +700,7 @@ impl Line {
     pub fn normalized(self) -> Self {
         let mut out = Self::from(self.p1_, self.p2_);
         out.normalize();
-        return out;
+        out
     }
 
     pub fn invert(&mut self) {
@@ -741,7 +730,7 @@ impl Line {
     pub fn inverse(self) -> Line {
         let mut out = Line::from(self.p1_, self.p2_);
         out.invert();
-        return out;
+        out
     }
 
     pub fn approx_eq(self, other: Line, epsilon: f64) -> bool {
@@ -753,7 +742,7 @@ impl Line {
             let cmp2: __m128 =
                 _mm_cmplt_ps(_mm_andnot_ps(neg, _mm_sub_ps(self.p2_, other.p2_)), eps);
             let cmp: __m128 = _mm_and_ps(cmp1, cmp2);
-            return _mm_movemask_ps(cmp) == 0xf;
+            _mm_movemask_ps(cmp) == 0xf
         }
     }
 }
@@ -764,7 +753,7 @@ impl PartialEq for Line {
             let p1_eq: __m128 = _mm_cmpeq_ps(self.p1_, other.p1_);
             let p2_eq: __m128 = _mm_cmpeq_ps(self.p2_, other.p2_);
             let eq: __m128 = _mm_and_ps(p1_eq, p2_eq);
-            return _mm_movemask_ps(eq) == 0xf;
+            _mm_movemask_ps(eq) == 0xf
         }
     }
 }
@@ -815,74 +804,92 @@ impl<T: Into<f32>> DivAssign<T> for Line {
     }
 }
 
-impl Line {
-    pub fn e12(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
+macro_rules! get_basis_blade_fn {
+    ($name:ident, $component:ident, $index:expr) => {
+        pub fn $name(self) -> f32 {
+            let mut out = <[f32; 4]>::default();
+            unsafe {
+                _mm_store_ps(&mut out[0], self.$component);
+            }
+            out[$index]
         }
-        return out[3];
-    }
+    };
+}
+
+impl Line {
+    get_basis_blade_fn!(e12, p1_, 3);
+    // pub fn e12(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p1_);
+    //     }
+    //     out[3]
+    // }
 
     pub fn e21(self) -> f32 {
         -self.e12()
     }
 
-    pub fn e31(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        return out[2];
-    }
+    get_basis_blade_fn!(e31, p1_, 2);
+    // pub fn e31(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p1_);
+    //     }
+    //     out[2]
+    // }
 
     pub fn e13(self) -> f32 {
         -self.e31()
     }
 
-    pub fn e23(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        return out[1];
-    }
+    get_basis_blade_fn!(e23, p1_, 1);
+    // pub fn e23(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p1_);
+    //     }
+    //     out[1]
+    // }
 
     pub fn e32(self) -> f32 {
         -self.e23()
     }
 
-    pub fn e01(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        return out[1];
-    }
+    get_basis_blade_fn!(e01, p2_, 1);
+    // pub fn e01(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p2_);
+    //     }
+    //     out[1]
+    // }
 
     pub fn e10(self) -> f32 {
         -self.e01()
     }
 
-    pub fn e02(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        return out[2];
-    }
+    get_basis_blade_fn!(e02, p2_, 2);
+    // pub fn e02(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p2_);
+    //     }
+    //     out[2]
+    // }
 
     pub fn e20(self) -> f32 {
         -self.e02()
     }
 
-    pub fn e03(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        return out[3];
-    }
+    get_basis_blade_fn!(e03, p2_, 3);
+    // pub fn e03(self) -> f32 {
+    //     let mut out = <[f32; 4]>::default();
+    //     unsafe {
+    //         _mm_store_ps(&mut out[0], self.p2_);
+    //     }
+    //     out[3]
+    // }
 
     pub fn e30(self) -> f32 {
         -self.e03()
@@ -926,7 +933,7 @@ macro_rules! mul_scalar_by_line {
             type Output = Line;
             #[inline]
             fn mul(self, l: Line) -> Line {
-                return l * (self as f32);
+                l * (self as f32)
             }
         }
     };
@@ -970,7 +977,7 @@ impl Neg for Line {
         unsafe {
             let flip: __m128 = _mm_set1_ps(-0.);
 
-            return Self::from(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip));
+            Self::from(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip))
         }
     }
 }
@@ -980,7 +987,7 @@ impl Line {
     pub fn reverse(self) -> Line {
         unsafe {
             let flip: __m128 = _mm_set_ps(-0., -0., -0., 0.);
-            return Self::from(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip));
+            Self::from(_mm_xor_ps(self.p1_, flip), _mm_xor_ps(self.p2_, flip))
         }
     }
 }
