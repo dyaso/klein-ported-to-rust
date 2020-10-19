@@ -24,7 +24,7 @@ impl fmt::Display for Plane {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Plane\te0\te1\te2\te3\n\t{}\t{}\t{}\t{}",
+            "\nPlane\te0\te1\te2\te3\n\t{:.3}\t{:.3}\t{:.3}\t{:.3}\n",
             self.e0(),
             self.e1(),
             self.e2(),
@@ -45,14 +45,17 @@ impl Default for Plane {
     }
 }
 
-// impl Default for [f32; 4] {
-//     #[inline]
-//     fn default() -> [f32; 4] {
-//         [0.0,0.0,0.0,0.0]
-//     }
-// }
-
 impl Plane {
+pub fn basis_e1() -> Plane {
+    Plane::new(1., 0., 0., 1.)
+}
+pub fn basis_e2() -> Plane {
+    Plane::new(0., 1., 0., 1.)
+}
+pub fn basis_e3() -> Plane {
+    Plane::new(0., 0., 1., 1.)
+}
+
     /// The constructor performs the rearrangement so the plane can be specified
     /// in the familiar form: ax + by + cz + d
     pub fn new(a: f32, b: f32, c: f32, d: f32) -> Plane {

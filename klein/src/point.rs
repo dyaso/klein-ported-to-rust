@@ -40,7 +40,7 @@ impl fmt::Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Point\n x: {}\n y: {}\n z: {}\n w: {}\n",
+            "\nPlane\te032\te013\te21\te123\n\t{:.3}\t{:.3}\t{:.3}\t{:.3}\n",
             self.x(),
             self.y(),
             self.z(),

@@ -148,7 +148,7 @@ pub fn mat4x4_12(translated: bool, normalized: bool, b: __m128, c: &__m128, res:
                 res[3] = _mm_blend_ps(
                     res[3],
                     _mm_set_ps(b0_2 + b1_2 + b2_2 + b3_2, 0., 0., 0.),
-                    0b1000
+                    0b1000,
                 );
             } else {
                 res[3] = _mm_add_ps(res[3], _mm_set_ps(b0_2 + b1_2 + b2_2 + b3_2, 0., 0., 0.));

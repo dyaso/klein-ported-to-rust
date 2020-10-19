@@ -64,6 +64,21 @@ impl EulerAngles {
 
 pub type Rotor = Branch;
 
+
+use std::fmt;
+impl fmt::Display for Rotor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "\nRotor:\tScalar\te23\te31\te12\n\t{:.3}\t{:.3}\t{:.3}\t{:.3}\n",
+            self.scalar(),
+            self.e23(),
+            self.e32(),
+            self.e12(),
+        )
+    }
+}
+
 impl Rotor {
     /// Convenience constructor. Computes transcendentals and normalizes
     /// rotation axis.

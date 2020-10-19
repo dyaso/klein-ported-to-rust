@@ -1,3 +1,6 @@
+#[macro_use]
+mod util;
+
 mod detail;
 mod dual;
 mod exp_log_sqrt;
@@ -13,7 +16,6 @@ mod point;
 mod projection;
 mod rotor;
 mod translator;
-mod util;
 
 pub use dual::Dual;
 pub use line::{Branch, IdealLine, Line};

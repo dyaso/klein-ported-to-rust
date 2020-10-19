@@ -6,6 +6,23 @@ pub trait ApplyToMany<O> {
     fn apply_to_many(self, input: &[O], other: &mut [O], count: usize);
 }
 
+#[macro_use]
+macro_rules! get_basis_blade_fn {
+    ($name:ident, $reverse_name:ident, $component:ident, $index:expr) => {
+        pub fn $name(self) -> f32 {
+            let mut out = <[f32; 4]>::default();
+            unsafe {
+                _mm_store_ps(&mut out[0], self.$component);
+            }
+            out[$index]
+        }
+
+        pub fn $reverse_name(self) -> f32 {
+            -self.$name()
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     #![cfg(target_arch = "x86_64")]

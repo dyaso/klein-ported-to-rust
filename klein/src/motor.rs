@@ -78,6 +78,24 @@ pub struct Motor {
     pub p2_: __m128,
 }
 
+use std::fmt;
+impl fmt::Display for Motor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Motor\n\tScalar\te23\te31\te12\te01\te02\te03\te0123\n\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\n",
+            self.scalar(),
+            self.e23(),
+            self.e32(),
+            self.e12(),
+            self.e01(),
+            self.e02(),
+            self.e03(),
+            self.e0123()
+        )
+    }
+}
+
 impl Motor {
     pub fn default() -> Motor {
         unsafe {
@@ -274,77 +292,13 @@ impl Motor {
         }
         out
     }
-    pub fn e12(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[3]
-    }
 
-    pub fn e21(self) -> f32 {
-        -self.e12()
-    }
-
-    pub fn e31(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[2]
-    }
-
-    pub fn e13(self) -> f32 {
-        -self.e31()
-    }
-
-    pub fn e23(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[1]
-    }
-
-    pub fn e32(self) -> f32 {
-        -self.e23()
-    }
-
-    pub fn e01(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[1]
-    }
-
-    pub fn e10(self) -> f32 {
-        -self.e01()
-    }
-
-    pub fn e02(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[2]
-    }
-
-    pub fn e20(self) -> f32 {
-        -self.e02()
-    }
-
-    pub fn e03(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[3]
-    }
-
-    pub fn e30(self) -> f32 {
-        -self.e03()
-    }
+    get_basis_blade_fn!(e12, e21, p1_, 3);
+    get_basis_blade_fn!(e31, e13, p1_, 2);
+    get_basis_blade_fn!(e23, e32, p1_, 1);
+    get_basis_blade_fn!(e01, e10, p2_, 1);
+    get_basis_blade_fn!(e02, e20, p2_, 2);
+    get_basis_blade_fn!(e03, e30, p2_, 3);
 
     pub fn e0123(self) -> f32 {
         let mut out: f32 = 0.;

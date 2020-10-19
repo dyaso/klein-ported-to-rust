@@ -177,41 +177,9 @@ impl Div<i32> for IdealLine {
 }
 
 impl IdealLine {
-    pub fn e01(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[1]
-    }
-
-    pub fn e10(self) -> f32 {
-        -self.e01()
-    }
-
-    pub fn e02(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[2]
-    }
-
-    pub fn e20(self) -> f32 {
-        -self.e02()
-    }
-
-    pub fn e03(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p2_);
-        }
-        out[3]
-    }
-
-    pub fn e30(self) -> f32 {
-        -self.e03()
-    }
+    get_basis_blade_fn!(e01, e10, p2_, 1);
+    get_basis_blade_fn!(e02, e20, p2_, 2);
+    get_basis_blade_fn!(e03, e30, p2_, 3);
 
     /// Reversion operator
     pub fn reverse(self) -> Self {
@@ -472,48 +440,16 @@ impl Branch {
         }
     }
 
-    pub fn e12(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[3]
-    }
-
-    pub fn e21(self) -> f32 {
-        -self.e12()
-    }
+    get_basis_blade_fn!(e12, e21, p1_, 3);
+    get_basis_blade_fn!(e31, e13, p1_, 2);
+    get_basis_blade_fn!(e23, e32, p1_, 1);
 
     pub fn z(self) -> f32 {
         self.e12()
     }
 
-    pub fn e31(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[2]
-    }
-
-    pub fn e13(self) -> f32 {
-        -self.e31()
-    }
-
     pub fn y(self) -> f32 {
         self.e31()
-    }
-
-    pub fn e23(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p1_);
-        }
-        out[1]
-    }
-
-    pub fn e32(self) -> f32 {
-        -self.e23()
     }
 
     pub fn x(self) -> f32 {
@@ -567,8 +503,7 @@ impl fmt::Display for Line {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Line\n// p1: (1, e23, e31, e12)\n// p2: (e01, e02, e03, e0123)\n
-\t{}\t{}\t{}\t{}\n\t{}\t{}\t{}\t{}",
+            "\nLine\tScalar\te23\te31\te12\te01\te02\te03\te0123\n\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\n",
             self.scalar(),
             self.e23(),
             self.e31(),
@@ -804,96 +739,13 @@ impl<T: Into<f32>> DivAssign<T> for Line {
     }
 }
 
-macro_rules! get_basis_blade_fn {
-    ($name:ident, $component:ident, $index:expr) => {
-        pub fn $name(self) -> f32 {
-            let mut out = <[f32; 4]>::default();
-            unsafe {
-                _mm_store_ps(&mut out[0], self.$component);
-            }
-            out[$index]
-        }
-    };
-}
-
 impl Line {
-    get_basis_blade_fn!(e12, p1_, 3);
-    // pub fn e12(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p1_);
-    //     }
-    //     out[3]
-    // }
-
-    pub fn e21(self) -> f32 {
-        -self.e12()
-    }
-
-    get_basis_blade_fn!(e31, p1_, 2);
-    // pub fn e31(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p1_);
-    //     }
-    //     out[2]
-    // }
-
-    pub fn e13(self) -> f32 {
-        -self.e31()
-    }
-
-    get_basis_blade_fn!(e23, p1_, 1);
-    // pub fn e23(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p1_);
-    //     }
-    //     out[1]
-    // }
-
-    pub fn e32(self) -> f32 {
-        -self.e23()
-    }
-
-    get_basis_blade_fn!(e01, p2_, 1);
-    // pub fn e01(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p2_);
-    //     }
-    //     out[1]
-    // }
-
-    pub fn e10(self) -> f32 {
-        -self.e01()
-    }
-
-    get_basis_blade_fn!(e02, p2_, 2);
-    // pub fn e02(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p2_);
-    //     }
-    //     out[2]
-    // }
-
-    pub fn e20(self) -> f32 {
-        -self.e02()
-    }
-
-    get_basis_blade_fn!(e03, p2_, 3);
-    // pub fn e03(self) -> f32 {
-    //     let mut out = <[f32; 4]>::default();
-    //     unsafe {
-    //         _mm_store_ps(&mut out[0], self.p2_);
-    //     }
-    //     out[3]
-    // }
-
-    pub fn e30(self) -> f32 {
-        -self.e03()
-    }
+    get_basis_blade_fn!(e12, e21, p1_, 3);
+    get_basis_blade_fn!(e31, e13, p1_, 2);
+    get_basis_blade_fn!(e23, e32, p1_, 1);
+    get_basis_blade_fn!(e01, e10, p2_, 1);
+    get_basis_blade_fn!(e02, e20, p2_, 2);
+    get_basis_blade_fn!(e03, e30, p2_, 3);
 }
 
 /// Line addition
