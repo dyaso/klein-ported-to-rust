@@ -5,7 +5,6 @@ pub trait ApplyTo<O> {
 pub trait ApplyToMany<O> {
     fn apply_to_many(self, input: &[O], other: &mut [O], count: usize);
 }
-
 #[macro_use]
 macro_rules! get_basis_blade_fn {
     ($name:ident, $reverse_name:ident, $component:ident, $index:expr) => {

@@ -28,29 +28,46 @@ use crate::{Branch, IdealLine, Line, Motor, Rotor, Translator};
 /// and then re-exponentiate the result. Using this technique, `exp(n * log(A))`
 /// is equivalent to $\mathbf{A}^n$.
 
+
+pub trait Log<O> {
+    fn log(self) -> O;
+}
+
+pub fn log<I: Log<O>, O>(input:I) -> O {
+    input.log()
+}
+
 /// Takes the principal branch of the logarithm of the motor, returning a
 /// bivector. Exponentiation of that bivector without any changes produces
 /// this motor again. Scaling that bivector by $\frac{1}{n}$,
 /// re-exponentiating, and taking the result to the $n$th power will also
 /// produce this motor again. The logarithm presumes that the motor is
 /// normalized.
-impl Motor {
+impl Log<Line> for Motor {
     #[inline]
-    pub fn log(self) -> Line {
+    fn log(self) -> Line {
         let mut out = Line::default();
         simd_log(self.p1_, self.p2_, &mut out.p1_, &mut out.p2_);
         out
     }
 }
 
+pub trait Exp<O> {
+    fn exp(self) -> O;
+}
+
+pub fn exp<I: Exp<O>, O>(input:I) -> O {
+    input.exp()
+}
 /// Exponentiate a line to produce a motor that posesses this line
 /// as its axis. This routine will be used most often when this line is
 /// produced as the logarithm of an existing rotor, then scaled to subdivide
 /// or accelerate the motor's action. The line need not be a _simple bivector_
 /// for the operation to be well-defined.
-impl Line {
+//impl Line {
+impl Exp<Motor> for Line {
     #[inline]
-    pub fn exp(self) -> Motor {
+    fn exp(self) -> Motor {
         let mut out = Motor::default();
         simd_exp(self.p1_, self.p2_, &mut out.p1_, &mut out.p2_);
         out
@@ -60,9 +77,9 @@ impl Line {
 /// Compute the logarithm of the translator, producing an ideal line axis.
 /// In practice, the logarithm of a translator is simply the ideal partition
 /// (without the scalar $1$).
-impl Translator {
+impl Log<IdealLine> for Translator {
     #[inline]
-    pub fn log(self) -> IdealLine {
+    fn log(self) -> IdealLine {
         let mut out = IdealLine::default();
         out.p2_ = self.p2_;
         out
@@ -76,9 +93,9 @@ impl Translator {
 ///
 /// $$\exp{\left[a\ee_{01} + b\ee_{02} + c\ee_{03}\right]} = 1 +\
 /// a\ee_{01} + b\ee_{02} + c\ee_{03}$$
-impl IdealLine {
+impl Exp<IdealLine> for IdealLine {
     #[inline]
-    pub fn exp(self) -> Translator {
+    fn exp(self) -> Translator {
         let mut out = Translator::default();
         out.p2_ = self.p2_;
         out
@@ -93,9 +110,9 @@ impl IdealLine {
 /// $\alpha\left[a\ee_{23} + b\ee_{31} + c\ee_{23}\right]$.
 /// This map is only well-defined if the
 /// rotor is normalized such that $a^2 + b^2 + c^2 = 1$.
-impl Rotor {
+impl Log<Branch> for Rotor {
     #[inline]
-    pub fn log(self) -> Branch {
+    fn log(self) -> Branch {
         let mut cos_ang: f32 = 0.;
         unsafe {
             _mm_store_ss(&mut cos_ang, self.p1_);
@@ -117,9 +134,9 @@ impl Rotor {
 }
 
 /// Exponentiate a branch to produce a rotor.
-impl Branch {
+impl Exp<Rotor> for Branch {
     #[inline]
-    pub fn exp(self) -> Rotor {
+    fn exp(self) -> Rotor {
         // Compute the rotor angle
         let mut out = Rotor::default();
         let mut ang: f32 = 0.;
@@ -136,28 +153,17 @@ impl Branch {
 }
 
 /// Compute the square root of the provided rotor $r$.
-impl Rotor {
+impl Sqrt<Rotor> for Rotor {
     #[inline]
-    pub fn sqrt(self) -> Rotor {
+    fn sqrt(self) -> Rotor {
         unsafe { Rotor::from(_mm_add_ss(self.p1_, _mm_set_ss(1.))).normalized() }
     }
 }
 
-// impl Branch {
-// 	#[inline]
-// 	pub fn sqrt(self) -> Rotor {
-// 		unsafe {
-// 			let mut r = Rotor::from(_mm_add_ss(r.p1_, _mm_set_ss(1.)));
-//     		r.normalize();
-// 		    return r
-// 		}
-// 	}
-// }
-
 /// Compute the square root of the provided translator $t$.
-impl Translator {
+impl Sqrt<Translator> for Translator {
     #[inline]
-    pub fn sqrt(self) -> Translator {
+    fn sqrt(self) -> Translator {
         //let t = self;
         // t *= 0.5;
         // t
@@ -165,15 +171,23 @@ impl Translator {
     }
 }
 
+pub trait Sqrt<O> {
+    fn sqrt(self) -> O;
+}
+
+pub fn sqrt<I: Sqrt<O>, O>(input:I) -> O {
+    input.sqrt()
+}
+
 /// Compute the square root of the provided motor $m$.
-impl Motor {
+impl Sqrt<Motor> for Motor {
+// impl Motor {
     #[inline]
-    pub fn sqrt(self) -> Motor {
+    fn sqrt(self) -> Motor {
         unsafe {
             let m =
                 Motor::from_rotor_and_translator(_mm_add_ss(self.p1_, _mm_set_ss(1.)), self.p2_);
             m.normalized_motor()
-            //            return m
         }
     }
 }
@@ -186,14 +200,14 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Branch, Line, Motor, Rotor, Translator};
+    use crate::{Branch, Line, Motor, Rotor, Translator, sqrt, log, exp};
 
     #[test]
     fn rotor_exp_log() {
         let pi = std::f32::consts::PI;
         let r = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
-        let b: Branch = r.log();
-        let r2: Rotor = b.exp();
+        let b: Branch = log(r);
+        let r2: Rotor = exp(b);
 
         approx_eq(r2.scalar(), r.scalar());
         approx_eq(r2.e12(), r.e12());
@@ -205,7 +219,7 @@ mod tests {
     fn rotor_sqrt() {
         let pi = std::f32::consts::PI;
         let r1: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
-        let r2: Rotor = r1.sqrt();
+        let r2: Rotor = sqrt(r1);
         let r3: Rotor = r2 * r2;
         approx_eq(r1.scalar(), r3.scalar());
         approx_eq(r1.e12(), r3.e12());
@@ -220,8 +234,8 @@ mod tests {
         let r: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
         let t: Translator = Translator::translator(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
-        let l: Line = m1.log();
-        let m2: Motor = l.exp();
+        let l: Line = log(m1);
+        let m2: Motor = exp(l);
 
         approx_eq(m1.scalar(), m2.scalar());
         approx_eq(m1.e12(), m2.e12());
@@ -232,7 +246,8 @@ mod tests {
         approx_eq(m1.e03(), m2.e03());
         approx_eq(m1.e0123(), m2.e0123());
 
-        let m3: Motor = m1.sqrt() * m1.sqrt();
+
+        let m3: Motor = sqrt(m1) * sqrt(m1);
         approx_eq(m1.scalar(), m3.scalar());
         approx_eq(m1.e12(), m3.e12());
         approx_eq(m1.e31(), m3.e31());
@@ -250,10 +265,10 @@ mod tests {
         let r: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
         let t: Translator = Translator::translator(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
-        let l: Line = m1.log();
+        let l: Line = log(m1);
         // Divide the motor action into three equal steps
         let step: Line = l / 3;
-        let m_step: Motor = step.exp();
+        let m_step: Motor = exp(step);
         let m2: Motor = m_step * m_step * m_step;
         approx_eq(m1.scalar(), m2.scalar());
         approx_eq(m1.e12(), m2.e12());
@@ -277,8 +292,8 @@ mod tests {
         let m2: Motor = r2 * t2;
 
         let motion: Motor = m2 * m1.reverse();
-        let step: Line = motion.log() / 4.;
-        let motor_step: Motor = step.exp();
+        let step: Line = log(motion) / 4.;
+        let motor_step: Motor = exp(step);
 
         // Applying motor_step 0 times to m1 is m1.
         // Applying motor_step 4 times to m1 is m2 * ~m1;

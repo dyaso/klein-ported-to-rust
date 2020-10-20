@@ -578,7 +578,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyTo, Line, Motor, Plane, Point, Rotor, Translator};
+    use crate::{ApplyTo, Line, Motor, Plane, Point, Rotor, Translator, log, sqrt};
 
     #[test]
     fn motor_plane() {
@@ -665,7 +665,7 @@ mod tests {
         approx_eq(p2.y(), -1.);
         approx_eq(p2.z(), 1.);
 
-        let l: Line = m.log();
+        let l: Line = log(m);
         assert_eq!(l.e23(), 0.);
         //CHECK_EQ(l.e12(), doctest::Approx(0.7854).epsilon(0.001));
         approx_eq(l.e12(), 0.785398); //.epsilon(0.001);
@@ -740,7 +740,7 @@ mod tests {
             Line::new(3., 1., 2., 4., -2., 1.).normalized(),
         );
 
-        let mut m2: Motor = m.sqrt();
+        let mut m2: Motor = sqrt(m);
         m2 = m2 * m2;
         approx_eq(m.scalar(), m2.scalar());
         approx_eq(m.e01(), m2.e01());

@@ -270,7 +270,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyTo, EulerAngles, Line, Point, Rotor};
+    use crate::{ApplyTo, EulerAngles, Line, Point, Rotor, sqrt};
 
     #[test]
     fn rotor_line() {
@@ -360,7 +360,7 @@ mod tests {
         let pi = std::f32::consts::PI;
         let r = Rotor::rotor(pi * 0.5, 1., 2., 3.);
 
-        let mut r2: Rotor = r.sqrt();
+        let mut r2: Rotor = sqrt(r);
         r2 = r2 * r2;
         approx_eq(r2.scalar(), r.scalar());
         approx_eq(r2.e23(), r.e23());

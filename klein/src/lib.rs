@@ -26,6 +26,7 @@ pub use point::{Element, Point};
 pub use rotor::{EulerAngles, Rotor};
 pub use translator::Translator;
 pub use util::{ApplyTo, ApplyToMany};
+pub use exp_log_sqrt::{log, sqrt, exp};
 
 #[cfg(test)]
 mod tests {

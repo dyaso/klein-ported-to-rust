@@ -371,7 +371,7 @@ mod tests {
     }
 
     use crate::{ApplyTo, Branch, Line, Motor, Plane, Point, Rotor, Translator};
-
+use crate::exp_log_sqrt::sqrt;
     #[test]
     fn multivector_gp_plane_plane() {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(p12.e03(), 2.);
         assert_eq!(p12.e0123(), 0.);
 
-        let p3: Plane = (p1 / p2).sqrt().apply_to(p2);
+        let p3: Plane = sqrt(p1 / p2).apply_to(p2);
         //assert_eq!(p3.approx_eq(p1, 0.001f), true);
         approx_eq(p3.x(), p1.x());
         approx_eq(p3.y(), p1.y());
@@ -464,7 +464,7 @@ mod tests {
 
         l1.normalize();
         l2.normalize();
-        let l3: Line = (l1 * l2).sqrt().apply_to(l2);
+        let l3: Line = sqrt(l1 * l2).apply_to(l2);
         approx_eq(l1.scalar(), -l3.scalar());
         approx_eq(l1.e23(), -l3.e23());
         approx_eq(l1.e31(), -l3.e31());
@@ -489,7 +489,7 @@ mod tests {
         b1.normalize();
         b2.normalize();
         //branch b3 = ~sqrt(b2 * b1)(b1);
-        let b3: Branch = ((b2 * b1).sqrt().apply_to(b1)).reverse();
+        let b3: Branch = sqrt(b2 * b1).apply_to(b1).reverse();
         approx_eq(b3.x(), b2.x());
         approx_eq(b3.y(), b2.y());
         approx_eq(b3.z(), b2.z());
@@ -548,7 +548,7 @@ mod tests {
         approx_eq(p1p2.e02(), -1.);
         approx_eq(p1p2.e03(), 1.);
 
-        let p3: Point = p1p2.sqrt().apply_to(p2);
+        let p3: Point = sqrt(p1p2).apply_to(p2);
         approx_eq(p3.x(), 1.);
         approx_eq(p3.y(), 2.);
         approx_eq(p3.z(), 3.);

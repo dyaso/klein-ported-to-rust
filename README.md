@@ -5,7 +5,7 @@ Run `cargo run --example spinning_tetrahedron` in the `demo` directory to see an
 
 ## Porting notes
 
-Rust doesn't seem to let you overload the function call operator syntax, so if you want to e.g. apply a rotation to something please use `let rotated = rotation.`**`apply_to`**`(something);` instead.
+I'm uncertain about typical Rust conventions so please open Issues or contact me on [bivector.net discord](https://discord.gg/vGY6pPk) if something's unusual. This is a Rust learning project (as well as SIMD use and PGA itself).
 
-I also can't seem to overload functions based on argument type, so `exp`, `log`, and `sqrt` are currently methods on the operand value.
+Rust doesn't let you overload the function call operator, so if you want to e.g. apply a rotation please `use` the `ApplyTo` trait and say `let rotated = rotation.`**`apply_to`**`(something);` instead.
 
