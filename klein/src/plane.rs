@@ -36,15 +36,6 @@ impl fmt::Display for Plane {
 // might be better to use a type alias instead? https://doc.rust-lang.org/reference/items/type-aliases.html
 // type Plane = __m128
 
-impl Default for Plane {
-    #[inline]
-    fn default() -> Plane {
-        Plane {
-            p0_: unsafe { _mm_setzero_ps() },
-        }
-    }
-}
-
 impl Plane {
 pub fn basis_e1() -> Plane {
     Plane::new(1., 0., 0., 1.)
@@ -65,12 +56,6 @@ pub fn basis_e3() -> Plane {
     }
 }
 
-impl From<__m128> for Plane {
-    fn from(xmm: __m128) -> Plane {
-        Plane { p0_: xmm }
-    }
-}
-
 /// Data should point to four floats with memory layout `(d, a, b, c)` where
 /// `d` occupies the lowest address in memory.
 impl From<&f32> for Plane {
@@ -80,6 +65,7 @@ impl From<&f32> for Plane {
         }
     }
 }
+
 
 impl Plane {
     /// Normalize this plane $p$ such that $p \cdot p = 1$.
@@ -118,14 +104,6 @@ impl Plane {
         }
     }
 
-    /// Return a normalized copy of this plane.
-    pub fn normalized(self) -> Plane {
-        // ???
-        //    	let out = Plane::from(self);
-        let mut out = self;
-        out.normalize();
-        out
-    }
 
     /// Compute the plane norm, which is often used to compute distances
     /// between points and lines.
@@ -175,69 +153,7 @@ impl Plane {
     }
 }
 
-use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
-
-impl AddAssign for Plane {
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        unsafe {
-            self.p0_ = _mm_add_ps(self.p0_, rhs.p0_);
-        }
-    }
-}
-
-impl SubAssign for Plane {
-    #[inline]
-    fn sub_assign(&mut self, rhs: Self) {
-        unsafe {
-            self.p0_ = _mm_sub_ps(self.p0_, rhs.p0_);
-        }
-    }
-}
-
-impl<T: Into<f32>> DivAssign<T> for Plane {
-    #[inline]
-    fn div_assign(&mut self, s: T) {
-        unsafe {
-            self.p0_ = _mm_mul_ps(self.p0_, rcp_nr1(_mm_set1_ps(s.into())));
-        }
-    }
-}
-
-impl<T: Into<f32>> MulAssign<T> for Plane {
-    #[inline]
-    fn mul_assign(&mut self, s: T) {
-        unsafe {
-            self.p0_ = _mm_mul_ps(self.p0_, _mm_set1_ps(s.into()));
-        }
-    }
-}
-
-use std::ops::{Add, Div, Mul, Sub};
-
-impl Add for Plane {
-    type Output = Plane;
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        unsafe { Plane::from(_mm_add_ps(self.p0_, rhs.p0_)) }
-    }
-}
-
-impl Sub for Plane {
-    type Output = Plane;
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        unsafe { Plane::from(_mm_sub_ps(self.p0_, rhs.p0_)) }
-    }
-}
-
-impl<T: Into<f32>> Mul<T> for Plane {
-    type Output = Plane;
-    #[inline]
-    fn mul(self, s: T) -> Self {
-        unsafe { Plane::from(_mm_mul_ps(self.p0_, _mm_set1_ps(s.into()))) }
-    }
-}
+common_operations!(Plane, p0_);
 
 macro_rules! mul_scalar_by_point {
     ($s:ty) => {
@@ -318,6 +234,7 @@ impl ApplyTo<Point> for Plane {
 }
 
 impl Plane {
+
     pub fn x(self) -> f32 {
         let mut out = <[f32; 4]>::default();
         unsafe {

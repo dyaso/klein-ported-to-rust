@@ -152,6 +152,17 @@ impl Mul<Rotor> for Rotor {
     }
 }
 
+impl Mul<Branch> for Branch {
+    type Output = Rotor;
+    #[inline]
+    fn mul(self, rhs: Branch) -> Rotor {
+        let mut out = Rotor::default();
+        gp11(self.p1_, rhs.p1_, &mut out.p1_);
+        out
+    }
+}
+
+
 /// The product of a dual number and a line effectively weights the line with a
 /// rotational and translational quantity. Subsequent exponentiation will
 /// produce a motor along the screw axis of line $b$ with rotation and

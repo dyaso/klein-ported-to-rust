@@ -93,7 +93,7 @@ impl Log<IdealLine> for Translator {
 ///
 /// $$\exp{\left[a\ee_{01} + b\ee_{02} + c\ee_{03}\right]} = 1 +\
 /// a\ee_{01} + b\ee_{02} + c\ee_{03}$$
-impl Exp<IdealLine> for IdealLine {
+impl Exp<Translator> for IdealLine {
     #[inline]
     fn exp(self) -> Translator {
         let mut out = Translator::default();

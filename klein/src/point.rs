@@ -16,14 +16,6 @@ pub struct Point {
     pub p3_: __m128,
 }
 
-impl Default for Point {
-    #[inline]
-    fn default() -> Point {
-        Point {
-            p3_: unsafe { _mm_setzero_ps() },
-        }
-    }
-}
 
 // // trait AsRef<T: ?Sized> {
 // //     fn as_ref(&self) -> &T;
@@ -56,12 +48,6 @@ impl fmt::Display for Point {
 //     }
 // }
 
-impl From<__m128> for Point {
-    fn from(xmm: __m128) -> Point {
-        Point { p3_: xmm }
-    }
-}
-
 impl Point {
     /// Create a normalized direction
     pub fn direction(x: f32, y: f32, z: f32) -> Point {
@@ -86,24 +72,18 @@ impl Point {
     /// Newton-Raphson refinement).
     pub fn normalize(&mut self) {
         unsafe {
-            if self.w() == 0. {
-                // it's a direction, a point at infinity
-                let tmp = rsqrt_nr1(hi_dp_bc(self.p3_, self.p3_));
-                self.p3_ = _mm_mul_ps(self.p3_, tmp);
-            } else {
-                // it's a regular point
+            // if self.w() == 0. {
+            //     // it's a direction, a point at infinity
+            //     let tmp = rsqrt_nr1(hi_dp_bc(self.p3_, self.p3_));
+            //     self.p3_ = _mm_mul_ps(self.p3_, tmp);
+            // } else {
+            //     // it's a regular point
                 let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
                 self.p3_ = _mm_mul_ps(self.p3_, tmp);
-            }
+            // }
         }
     }
 
-    /// Return a normalized copy of this point.
-    pub fn normalized(self) -> Point {
-        let mut out = Point::clone(&self);
-        out.normalize();
-        out
-    }
 
     pub fn invert(&mut self) {
         unsafe {
@@ -119,40 +99,20 @@ impl Point {
         out
     }
 
-    pub fn x(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p3_);
-        }
-        out[1]
-    }
+    get_basis_blade_fn!(e032, e023, p3_, 1);
+    get_basis_blade_fn!(e013, e031, p3_, 2);
+    get_basis_blade_fn!(e021, e012, p3_, 3);
 
-    pub fn e032(self) -> f32 {
-        self.x()
+    pub fn x(self) -> f32 {
+        self.e032()
     }
 
     pub fn y(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p3_);
-        }
-        out[2]
-    }
-
-    pub fn e013(self) -> f32 {
-        self.y()
+        self.e013()
     }
 
     pub fn z(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p3_);
-        }
-        out[3]
-    }
-
-    pub fn e021(self) -> f32 {
-        self.z()
+        self.e021()
     }
 
     /// The homogeneous coordinate `w` is exactly $1$ when normalized.
@@ -169,72 +129,8 @@ impl Point {
     }
 }
 
-use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
-
-impl AddAssign for Point {
-    #[inline]
-    fn add_assign(&mut self, rhs: Self) {
-        unsafe {
-            self.p3_ = _mm_add_ps(self.p3_, rhs.p3_);
-        }
-    }
-}
-
-impl SubAssign for Point {
-    #[inline]
-    fn sub_assign(&mut self, rhs: Self) {
-        unsafe {
-            self.p3_ = _mm_sub_ps(self.p3_, rhs.p3_);
-        }
-    }
-}
-
-/// Point uniform inverse scale
-impl<T: Into<f32>> DivAssign<T> for Point {
-    #[inline]
-    fn div_assign(&mut self, s: T) {
-        unsafe {
-            self.p3_ = _mm_mul_ps(self.p3_, rcp_nr1(_mm_set1_ps(s.into())));
-        }
-    }
-}
-
+common_operations!(Point, p3_);
 /// Point uniform scale
-impl<T: Into<f32>> MulAssign<T> for Point {
-    #[inline]
-    fn mul_assign(&mut self, s: T) {
-        unsafe {
-            self.p3_ = _mm_mul_ps(self.p3_, _mm_set1_ps(s.into()));
-        }
-    }
-}
-
-use std::ops::{Add, Div, Mul, Sub};
-
-impl Add for Point {
-    type Output = Point;
-    #[inline]
-    fn add(self, rhs: Self) -> Self {
-        unsafe { Point::from(_mm_add_ps(self.p3_, rhs.p3_)) }
-    }
-}
-
-/// Point subtraction
-impl Sub for Point {
-    type Output = Point;
-    #[inline]
-    fn sub(self, rhs: Self) -> Self {
-        unsafe { Point::from(_mm_sub_ps(self.p3_, rhs.p3_)) }
-    }
-}
-/// Point uniform scale
-impl<T: Into<f32>> Mul<T> for Point {
-    type Output = Point;
-    #[inline]
-    fn mul(self, s: T) -> Self {
-        unsafe { Point::from(_mm_mul_ps(self.p3_, _mm_set1_ps(s.into()))) }
-    }
-}
 
 macro_rules! mul_scalar_by_point {
     ($s:ty) => {

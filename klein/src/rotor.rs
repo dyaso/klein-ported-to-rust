@@ -2,6 +2,7 @@
 use std::arch::x86_64::*;
 
 use crate::detail::sandwich::{sw012, sw_mm_three, sw_mm_two};
+use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 use crate::util::ApplyTo;
 use crate::{Branch, Line, Plane, Point};
@@ -62,8 +63,18 @@ impl EulerAngles {
 /// The same `*` operator can be used to compose the rotor's action with other
 /// translators and motors.
 
-pub type Rotor = Branch;
+#[derive(Copy, Clone, Debug)]
+pub struct Rotor {
+    pub p1_: __m128
+}
 
+common_operations!(Rotor, p1_);
+
+impl Rotor {
+    get_basis_blade_fn!(e12, e21, p1_, 3);
+    get_basis_blade_fn!(e31, e13, p1_, 2);
+    get_basis_blade_fn!(e23, e32, p1_, 1);
+}
 
 use std::fmt;
 impl fmt::Display for Rotor {
@@ -203,21 +214,52 @@ impl Rotor {
         );
         ea
     }
+    /// Store m128 contents into an array of 4 floats
+    pub fn store(self, out: &mut f32) {
+        unsafe {
+            _mm_store_ps(&mut *out, self.p1_);
+        }
+    }
 
-    // rotor normalization is done in Branch in Line.rs
+    pub fn invert(&mut self) {
+        let inv_norm: __m128 = rsqrt_nr1(hi_dp_bc(self.p1_, self.p1_));
+        unsafe {
+            self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
+            self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
+            self.p1_ = _mm_xor_ps(_mm_set_ps(-0., -0., -0., 0.), self.p1_);
+        }
+    }
 
-    // pub fn normalize_rotor(&mut self) {
-    //     unsafe {
-    //         let inv_norm: __m128 = rsqrt_nr1(dp_bc(self.p1_, self.p1_));
-    //         self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
-    //     }
-    // }
+    pub fn inverse(self) -> Self {
+        let mut out = Self::from(self.p1_);
+        out.invert();
+        out
+    }
 
-    // pub fn normalized_rotor(self) -> Self {
-    //     let mut out = Self::from(self.p1_);
-    //     out.normalize_rotor();
-    //     return out;
-    // }
+    pub fn normalize(&mut self) {
+        unsafe {
+            let inv_norm: __m128 = rsqrt_nr1(dp_bc(self.p1_, self.p1_));
+            self.p1_ = _mm_mul_ps(self.p1_, inv_norm);
+        }
+    }
+
+    pub fn scalar(self) -> f32 {
+        let mut out: f32 = 0.;
+        unsafe {
+            _mm_store_ss(&mut out, self.p1_);
+        }
+        out
+    }
+}
+
+use std::ops::Neg;
+impl Neg for Rotor {
+    type Output = Self;
+    /// Unary minus
+    #[inline]
+    fn neg(self) -> Self::Output {
+        Self::from(unsafe { _mm_xor_ps(self.p1_, _mm_set1_ps(-0.)) })
+    }
 }
 
 impl PartialEq for Rotor {

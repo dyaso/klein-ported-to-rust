@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-//use crate::detail::sse::hi_dp_ss; //rcp_nr1, hi_dp, hi_dp_bc, rsqrt_nr1};
+use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 use crate::detail::sandwich::{sw02, sw32, sw_l2};
 
 use crate::util::ApplyTo;
@@ -45,7 +45,12 @@ use crate::{IdealLine, Line, Plane, Point};
 /// The same `*` operator can be used to compose the translator's action with
 /// other rotors and motors.
 
-pub type Translator = IdealLine;
+//pub type Translator = IdealLine;
+
+#[derive(Copy, Clone)]
+pub struct Translator {
+    pub p2_: __m128
+}
 
 impl Translator {
     pub fn translator(delta: f32, x: f32, y: f32, z: f32) -> Translator {
@@ -76,6 +81,10 @@ impl Translator {
         }
     }
 
+    pub fn normalize(self) -> Self {
+        unimplemented!()
+    }
+
     pub fn inverse(self) -> Translator {
         let mut out = Translator::from(self.p2_);
         out.invert();
@@ -97,6 +106,15 @@ impl ApplyTo<Plane> for Translator {
             Plane::from(sw02(p.p0_, tmp))
         }
     }
+}
+
+common_operations!(Translator, p2_);
+
+impl Translator {
+    get_basis_blade_fn!(e01, e10, p2_, 1);
+    get_basis_blade_fn!(e02, e20, p2_, 2);
+    get_basis_blade_fn!(e03, e30, p2_, 3);
+
 }
 
 /// Conjugates a line $\ell$ with this translator and returns the result

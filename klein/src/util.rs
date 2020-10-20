@@ -1,3 +1,4 @@
+
 pub trait ApplyTo<O> {
     fn apply_to(self, other: O) -> O;
 }
@@ -5,6 +6,7 @@ pub trait ApplyTo<O> {
 pub trait ApplyToMany<O> {
     fn apply_to_many(self, input: &[O], other: &mut [O], count: usize);
 }
+
 #[macro_use]
 macro_rules! get_basis_blade_fn {
     ($name:ident, $reverse_name:ident, $component:ident, $index:expr) => {
@@ -20,6 +22,107 @@ macro_rules! get_basis_blade_fn {
             -self.$name()
         }
     };
+}
+
+macro_rules! common_operations {
+
+    ($object:ty, $component:ident) 
+    => {
+        impl From<__m128> for $object {
+            fn from(xmm: __m128) -> Self {
+                Self { $component: xmm }
+            }
+        }
+
+        impl Default for $object {
+            fn default() -> Self {
+                unsafe {
+                    Self {$component: _mm_setzero_ps()}
+                }
+            }
+        }
+        use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign, Add, Sub, Div, Mul};
+    
+        impl<T: Into<f32>> MulAssign<T> for $object {
+            #[inline]
+            fn mul_assign(&mut self, s: T) {
+                unsafe {
+                    self.$component = _mm_mul_ps(self.$component, _mm_set1_ps(s.into()));
+                }
+            }
+        }
+
+
+        impl AddAssign for $object {
+            #[inline]
+            fn add_assign(&mut self, rhs: Self) {
+                unsafe {
+                    self.$component = _mm_add_ps(self.$component, rhs.$component);
+                }
+            }
+        }
+        
+        impl SubAssign for $object {
+            #[inline]
+            fn sub_assign(&mut self, rhs: Self) {
+                unsafe { self.$component = _mm_sub_ps(self.$component, rhs.$component) }
+            }
+        }
+        
+        impl Add for $object {
+            type Output = $object;
+            #[inline]
+            fn add(self, rhs: Self) -> Self {
+                unsafe { Self::from(_mm_add_ps(self.$component, rhs.$component)) }
+            }
+        }
+
+        impl Sub for $object {
+            type Output = Self;
+            #[inline]
+            fn sub(self, rhs: Self) -> Self {
+                unsafe { Self::from(_mm_sub_ps(self.$component, rhs.$component)) }
+            }
+        }
+
+
+        impl<T: Into<f32>> Mul<T> for $object {
+            type Output = Self;
+            #[inline]
+            fn mul(self, s: T) -> Self {
+                unsafe { Self::from(_mm_mul_ps(self.$component, _mm_set1_ps(s.into()))) }
+            }
+        }
+
+        impl<T: Into<f32>> DivAssign<T> for $object {
+            #[inline]
+            fn div_assign(&mut self, s: T) {
+                unsafe {
+                    self.$component = _mm_mul_ps(self.$component, rcp_nr1(_mm_set1_ps(s.into())));
+                }
+            }
+        }
+        
+
+
+        impl $object {
+            #[inline]
+            pub fn normalized(self) -> Self        {
+                let mut out = Self::from(self.$component);
+                out.normalize();
+                out
+            }
+    
+            #[inline]
+            pub fn reverse(self) -> Self {
+                unsafe {
+                    let flip: __m128 = _mm_set_ps(-0., -0., -0., 0.);
+                    Self::from(_mm_xor_ps(self.$component, flip))
+                }
+            }
+        }
+
+    }
 }
 
 #[cfg(test)]
