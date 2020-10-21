@@ -34,6 +34,13 @@ macro_rules! common_operations {
             }
         }
 
+        impl From<$object> for __m128 {
+            fn from(me :$object) -> Self {
+                me.$component
+            }
+        }
+
+
         impl Default for $object {
             fn default() -> Self {
                 unsafe {

@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::*;//{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 /// Klein provides three line classes: "line", "branch", and "ideal_line". The
 /// line class represents a full six-coordinate bivector. The branch contains
@@ -96,7 +96,7 @@ impl Line {
     pub fn from_ideal(other: IdealLine) -> Line {
         unsafe {
             Line {
-                p1_: _mm_setzero_ps(),
+                p1_: _mm_set_ss(1.),
                 p2_: other.p2_,
             }
         }
@@ -119,7 +119,7 @@ impl Line {
     pub fn default() -> Line {
         unsafe {
             Line {
-                p1_: _mm_setzero_ps(),
+                p1_: _mm_set_ss(1.),
                 p2_: _mm_setzero_ps(),
             }
         }

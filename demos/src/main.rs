@@ -9,7 +9,7 @@ use druid::{
     Point as DruidPoint, TextLayout, WindowDesc,
 };
 
-use klein::{ApplyOp, Plane, Point, Rotor};
+use klein::{ApplyTo, Plane, Point, Rotor};
 
 #[derive(Default)]
 struct CustomWidget {

@@ -79,6 +79,24 @@ use crate::detail::geometric_product::{
 
 use std::ops::{Div, Mul};
 
+// macro_rules! geometric_product {
+//     ($left:ty, $right:ty, $output:ty, $s:ty, $value:expr)
+//     => {
+//         impl Mul<$right> for $left {
+//             type Output = $output;
+//             #[inline]
+//             fn mul(self, rhs: $right) -> Self::Output {
+//                 let mut out = Self::Output::default();
+//                 $value;
+//                 out
+//             }
+//         }
+
+//     }
+// }
+// geometric_product!(Plane, Plane, Motor, self,
+//     gp00(self.p0_, rhs.p0_, &mut out.p1_, &mut out.p2_)
+//     );
 impl Mul<Plane> for Plane {
     type Output = Motor;
     #[inline]

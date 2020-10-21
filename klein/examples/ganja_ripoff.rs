@@ -8,8 +8,8 @@ use std::f32::consts::PI;
 
 fn main() {
 	// Elements of the even subalgebra (scalar, bivectors, and the pseudoscalar) of unit length are motors
-	let rot = Rotor::rotor(PI / 2., 0., 0., 1.);
-println!("wha? {}",Plane::basis_e1() ^ Plane::basis_e2());
+	let rot = Rotor::new(PI / 2., 0., 0., 1.);
+
 	// The outer product ^ is the MEET. Here we intersect the yz (x=0) and xz (y=0) planes.
 	let ax_z = Plane::basis_e1() ^ Plane::basis_e2();
 

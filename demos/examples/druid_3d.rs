@@ -9,7 +9,7 @@ use druid::{
     Point as DruidPoint, TextLayout, WindowDesc,
 };
 
-use klein::{ApplyOp, Plane, Point, Rotor};
+use klein::*;
 
 #[derive(Default)]
 struct CustomWidget {
@@ -119,8 +119,7 @@ use std::rc::Rc;
 struct State {
     points: Rc<Vec<Point>>,
     mouse_over: Option<usize>,
-    mesh: Rc<Vec<Point>>,
-    indices: Rc<Vec<Vec<usize>>>,
+    scene: Rc<Vec<Object>>,
     time: f64,
 }
 
@@ -207,14 +206,42 @@ impl Widget<State> for CustomWidget {
         // and we only want to clear this widget's area.
         let fill_color = Color::rgba8(0xa3, 0xa3, 0xa3, 0xFF);
 
-        let r = Rotor::rotor(data.time as f32, 1., -1., 0.5);
+        let r = Rotor::new(data.time as f32, 1., -1., 0.5);
 
-        for p in data.indices.iter() {
+
+
+
+        let mut faces = Vec::<Vec::<Point>>::new();
+
+        for obj in data.scene.iter() {
+            let m: Motor = obj.world_positioning_motor;
+            let s = obj.scale;
+            for face in obj.mesh.faces.iter() {
+                let mut verts = Vec::<Point>::new();
+                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[0]])));
+                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[1]])));
+                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[2]])));
+                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[0]])));
+                faces.push(verts);
+            }
+        }
+        // for p in data.scene[0].mesh.faces.iter() {
+        //     let m: Motor = data.scene[0].world_positioning_motor;
+        //     let mut path = BezPath::new();
+        //     path.move_to(self.to_druid_point(&r.apply_to(m.apply_to(data.scene[0].mesh.vertices[p[0]]))));
+        //     path.line_to(self.to_druid_point(&r.apply_to(m.apply_to(data.scene[0].mesh.vertices[p[1]]))));
+        //     path.line_to(self.to_druid_point(&r.apply_to(m.apply_to(data.scene[0].mesh.vertices[p[2]]))));
+        //     path.line_to(self.to_druid_point(&r.apply_to(m.apply_to(data.scene[0].mesh.vertices[p[0]]))));
+        //     let stroke_color = Color::rgb8(240, 240, 240);
+        //     ctx.stroke(path, &stroke_color, 4.0);
+        // }
+
+        for f in faces.iter() {
             let mut path = BezPath::new();
-            path.move_to(self.to_druid_point(&r.apply_to(data.mesh[p[0]])));
-            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[1]])));
-            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[2]])));
-            path.line_to(self.to_druid_point(&r.apply_to(data.mesh[p[0]])));
+            path.move_to(self.to_druid_point(&f[0]));
+            path.line_to(self.to_druid_point(&f[1]));
+            path.line_to(self.to_druid_point(&f[2]));
+            path.line_to(self.to_druid_point(&f[0]));
             let stroke_color = Color::rgb8(240, 240, 240);
             ctx.stroke(path, &stroke_color, 4.0);
         }
@@ -248,7 +275,62 @@ impl Widget<State> for CustomWidget {
     }
 }
 
-pub fn main() {
+struct Mesh {
+    vertices: Vec<Point>,
+    faces: Vec<Vec<usize>>,
+}
+
+struct Object {
+    mesh: Mesh,
+    scale: f32,
+    world_positioning_motor: Motor,
+}
+
+impl Mesh {
+    fn tetrahedron() -> Self {
+        let v1 = Point::new(0., 1., 0.);
+        let v2 = Rotor::new(f32::acos(-1. / 3.), 1., 0., 0.).apply_to(v1);
+        let r = Rotor::new(f32::acos(-0.5), 0., 1., 0.);
+        let v3 = r.apply_to(v2);
+        let v4 = r.apply_to(v3);
+
+        let vertices = vec![v1, v2, v3, v4];
+        let position = Motor::default();
+
+        Self {vertices: vec![v1,v2,v3,v4], faces:
+            vec![vec![0, 1, 2], vec![0, 2, 3], vec![0, 3, 1], vec![1, 3, 2]]
+        }
+    }
+}
+
+impl From<Mesh> for Object {
+    fn from(mesh: Mesh) -> Self {
+        Object {
+            scale: 1.,
+            world_positioning_motor: Motor::default(),
+            mesh
+        }
+    }
+}
+
+impl Object {
+    fn mesh_at(mesh: Mesh, at: Motor) -> Self {
+        Object {
+            scale: 1.,
+            world_positioning_motor: at,
+            mesh
+        }
+    }
+    fn scaled_mesh_at(mesh: Mesh, scale: f32, at: Motor) -> Self {
+        Object {
+            scale,
+            world_positioning_motor: at,
+            mesh
+        }
+    }
+}
+
+fn main() {
     let window = WindowDesc::new(|| CustomWidget::new()).title(
         LocalizedString::new("custom-widget-demo-window-title").with_placeholder("klein rust demo"),
     );
@@ -256,26 +338,18 @@ pub fn main() {
         ..Default::default()
     };
 
+    let l: Line = origin() & Point::new(1.,0.,0.);
+    let m = Motor::from_screw_line(1.,2.,l);
+
+    let scene  = Rc::get_mut(&mut s.scene).unwrap();
+//FIXME    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,1.,l)));FIXME    
+    scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
+    // scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
+    scene.push(Object::scaled_mesh_at(Mesh::tetrahedron(), 0.1, Motor::default()));
+
     let ps = Rc::get_mut(&mut s.points).unwrap();
     ps.push(Point::new(0., 0.6, 0.));
     ps.push(Point::new(0.94, 0., 0.));
-
-    let y1 = Point::new(0., 1., 0.);
-    let p1 = Rotor::rotor(f32::acos(-1. / 3.), 1., 0., 0.).apply_to(y1);
-    let r = Rotor::rotor(f32::acos(-0.5), 0., 1., 0.);
-    let p2 = r.apply_to(p1);
-
-    let mesh = Rc::get_mut(&mut s.mesh).unwrap();
-    mesh.push(y1);
-    mesh.push(p1);
-    mesh.push(p2);
-    mesh.push(r.apply_to(p2));
-
-    let indices = Rc::get_mut(&mut s.indices).unwrap();
-    indices.push(vec![0, 1, 2]);
-    indices.push(vec![0, 2, 3]);
-    indices.push(vec![0, 3, 1]);
-    indices.push(vec![1, 3, 2]);
 
     AppLauncher::with_window(window)
         .use_simple_logger()

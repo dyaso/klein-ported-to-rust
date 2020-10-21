@@ -27,7 +27,7 @@ pub use branch::{Branch};
 pub use matrices::{Mat3x4, Mat4x4};
 pub use motor::Motor;
 pub use plane::Plane;
-pub use point::{Element, Point};
+pub use point::{Element, Point, origin};
 pub use direction::{Direction};
 pub use rotor::{EulerAngles, Rotor};
 pub use translator::Translator;

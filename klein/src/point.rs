@@ -16,6 +16,7 @@ pub struct Point {
     pub p3_: __m128,
 }
 
+pub fn origin() -> Point { Point::new(0.,0.,0.) }
 
 // // trait AsRef<T: ?Sized> {
 // //     fn as_ref(&self) -> &T;

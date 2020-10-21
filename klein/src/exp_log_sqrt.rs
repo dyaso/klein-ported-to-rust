@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn rotor_exp_log() {
         let pi = std::f32::consts::PI;
-        let r = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
+        let r = Rotor::new(pi * 0.5, 0.3, -3., 1.);
         let b: Branch = log(r);
         let r2: Rotor = exp(b);
 
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn rotor_sqrt() {
         let pi = std::f32::consts::PI;
-        let r1: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
+        let r1: Rotor = Rotor::new(pi * 0.5, 0.3, -3., 1.);
         let r2: Rotor = sqrt(r1);
         let r3: Rotor = r2 * r2;
         approx_eq(r1.scalar(), r3.scalar());
@@ -231,7 +231,7 @@ mod tests {
     fn motor_exp_log_sqrt() {
         // Construct a motor from a translator and rotor
         let pi = std::f32::consts::PI;
-        let r: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
+        let r: Rotor = Rotor::new(pi * 0.5, 0.3, -3., 1.);
         let t: Translator = Translator::translator(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
         let l: Line = log(m1);
@@ -262,7 +262,7 @@ mod tests {
     fn motor_slerp() {
         // Construct a motor from a translator and rotor
         let pi = std::f32::consts::PI;
-        let r: Rotor = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
+        let r: Rotor = Rotor::new(pi * 0.5, 0.3, -3., 1.);
         let t: Translator = Translator::translator(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
         let l: Line = log(m1);
@@ -283,11 +283,11 @@ mod tests {
     #[test]
     fn motor_blend() {
         let pi = std::f32::consts::PI;
-        let r1: Rotor = Rotor::rotor(pi * 0.5, 0., 0., 1.);
+        let r1: Rotor = Rotor::new(pi * 0.5, 0., 0., 1.);
         let t1: Translator = Translator::translator(1., 0., 0., 1.);
         let m1: Motor = r1 * t1;
 
-        let r2 = Rotor::rotor(pi * 0.5, 0.3, -3., 1.);
+        let r2 = Rotor::new(pi * 0.5, 0.3, -3., 1.);
         let t2 = Translator::translator(12., -2., 0.4, 1.);
         let m2: Motor = r2 * t2;
 

@@ -235,40 +235,21 @@ impl ApplyTo<Point> for Plane {
 
 impl Plane {
 
-    pub fn x(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p0_);
-        }
-        out[1]
-    }
 
-    pub fn e1(self) -> f32 {
-        self.x()
+    get_basis_blade_fn!(e1, neg1, p0_, 1);
+    get_basis_blade_fn!(e2, neg2, p0_, 2);
+    get_basis_blade_fn!(e3, neg3, p0_, 3);
+
+    pub fn x(self) -> f32 {
+        self.e1()
     }
 
     pub fn y(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p0_);
-        }
-        out[2]
-    }
-
-    pub fn e2(self) -> f32 {
-        self.y()
+        self.e2()
     }
 
     pub fn z(self) -> f32 {
-        let mut out = <[f32; 4]>::default();
-        unsafe {
-            _mm_store_ps(&mut out[0], self.p0_);
-        }
-        out[3]
-    }
-
-    pub fn e3(self) -> f32 {
-        self.z()
+        self.e3()
     }
 
     pub fn d(self) -> f32 {

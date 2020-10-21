@@ -96,11 +96,34 @@ impl fmt::Display for Motor {
     }
 }
 
+impl From<Rotor> for Motor {
+    fn from(rotor: Rotor) -> Self {
+        unsafe {
+            Motor {
+                p1_: rotor.p1_,
+                p2_: _mm_setzero_ps(),
+            }
+        }
+    }
+}
+
+impl From<Translator> for Motor {
+    fn from(translator: Translator) -> Self {
+        unsafe {
+            Motor {
+                p1_: _mm_set_ss(1.),
+                p2_: translator.p2_,
+            }
+        }
+    }
+}
+
+
 impl Motor {
     pub fn default() -> Motor {
         unsafe {
             Motor {
-                p1_: _mm_setzero_ps(),
+                p1_: _mm_set_ss(1.),//_mm_setzero_ps(),
                 p2_: _mm_setzero_ps(),
             }
         }
@@ -133,7 +156,7 @@ impl Motor {
 
     /// Produce a screw motion rotating and translating by given amounts along a
     /// provided Euclidean axis.
-    pub fn screw(ang_rad: f32, d: f32, l: Line) -> Motor {
+    pub fn from_screw_line(ang_rad: f32, d: f32, l: Line) -> Motor {
         let mut log_m = Line::default();
         let mut out = Motor::default();
         gp_dl(
@@ -146,24 +169,6 @@ impl Motor {
         );
         simd_exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
         out
-    }
-
-    pub fn from_rotor(r: Rotor) -> Motor {
-        unsafe {
-            Motor {
-                p1_: r.p1_,
-                p2_: _mm_setzero_ps(),
-            }
-        }
-    }
-
-    pub fn from_translator(t: Translator) -> Motor {
-        unsafe {
-            Motor {
-                p1_: _mm_set_ss(1.),
-                p2_: t.p2_,
-            }
-        }
     }
 
     pub fn set_rotation(&mut self, r: Rotor) {
@@ -649,7 +654,7 @@ mod tests {
     #[test]
     fn construct_motor() {
         let pi = std::f32::consts::PI;
-        let r = Rotor::rotor(pi * 0.5, 0., 0., 1.);
+        let r = Rotor::new(pi * 0.5, 0., 0., 1.);
         let t = Translator::translator(1., 0., 0., 1.);
         let mut m: Motor = r * t;
         let p1 = Point::new(1., 0., 0.);
@@ -678,7 +683,7 @@ mod tests {
     #[test]
     fn construct_motor_via_screw_axis() {
         let pi = std::f32::consts::PI;
-        let m = Motor::screw(pi * 0.5, 1., Line::new(0., 0., 0., 0., 0., 1.));
+        let m = Motor::from_screw_line(pi * 0.5, 1., Line::new(0., 0., 0., 0., 0., 1.));
         let p1 = Point::new(1., 0., 0.);
         let p2 = m.apply_to(p1);
         approx_eq(p2.x(), 0.);
@@ -734,7 +739,7 @@ mod tests {
     #[test]
     fn motor_sqrt() {
         let pi = std::f32::consts::PI;
-        let m = Motor::screw(
+        let m = Motor::from_screw_line(
             pi * 0.5,
             3.,
             Line::new(3., 1., 2., 4., -2., 1.).normalized(),

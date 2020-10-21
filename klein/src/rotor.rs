@@ -90,10 +90,37 @@ impl fmt::Display for Rotor {
     }
 }
 
+impl From<&EulerAngles> for Rotor {
+    fn from(ea: &EulerAngles) -> Self {
+//    pub fn from_euler_angles(ea: &EulerAngles) -> Rotor {
+        // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#cite_note-3
+        let half_yaw: f32 = ea.yaw * 0.5;
+        let half_pitch: f32 = ea.pitch * 0.5;
+        let half_roll: f32 = ea.roll * 0.5;
+        let cos_y: f32 = f32::cos(half_yaw);
+        let sin_y: f32 = f32::sin(half_yaw);
+        let cos_p: f32 = f32::cos(half_pitch);
+        let sin_p: f32 = f32::sin(half_pitch);
+        let cos_r: f32 = f32::cos(half_roll);
+        let sin_r: f32 = f32::sin(half_roll);
+
+        unsafe {
+            let p1_ = _mm_set_ps(
+                cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
+                cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
+                sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
+                cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
+            );
+
+            Rotor::from(p1_).normalized()
+        }
+    }
+}
+
 impl Rotor {
     /// Convenience constructor. Computes transcendentals and normalizes
     /// rotation axis.
-    pub fn rotor(ang_rad: f32, x: f32, y: f32, z: f32) -> Rotor {
+    pub fn new(ang_rad: f32, x: f32, y: f32, z: f32) -> Rotor {
         let norm: f32 = f32::sqrt(x * x + y * y + z * z);
         let inv_norm: f32 = 1. / norm;
 
@@ -121,30 +148,6 @@ impl Rotor {
     pub fn load_normalized(&mut self, data: &f32) {
         unsafe {
             self.p1_ = _mm_loadu_ps(data);
-        }
-    }
-
-    pub fn from_euler_angles(ea: &EulerAngles) -> Rotor {
-        // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#cite_note-3
-        let half_yaw: f32 = ea.yaw * 0.5;
-        let half_pitch: f32 = ea.pitch * 0.5;
-        let half_roll: f32 = ea.roll * 0.5;
-        let cos_y: f32 = f32::cos(half_yaw);
-        let sin_y: f32 = f32::sin(half_yaw);
-        let cos_p: f32 = f32::cos(half_pitch);
-        let sin_p: f32 = f32::sin(half_pitch);
-        let cos_r: f32 = f32::cos(half_roll);
-        let sin_r: f32 = f32::sin(half_roll);
-
-        unsafe {
-            let p1_ = _mm_set_ps(
-                cos_r * cos_p * sin_y - sin_r * sin_p * cos_y,
-                cos_r * sin_p * cos_y + sin_r * cos_p * sin_y,
-                sin_r * cos_p * cos_y - cos_r * sin_p * sin_y,
-                cos_r * cos_p * cos_y + sin_r * sin_p * sin_y,
-            );
-
-            Rotor::from(p1_).normalized()
         }
     }
 
@@ -334,7 +337,7 @@ mod tests {
     #[test]
     fn rotor_point() {
         let pi = std::f32::consts::PI;
-        let r = Rotor::rotor(pi * 0.5, 0., 0., 1.);
+        let r = Rotor::new(pi * 0.5, 0., 0., 1.);
         let p1 = Point::new(1., 0., 0.);
         let p2: Point = r.apply_to(p1);
         assert_eq!(p2.x(), 0.);
@@ -346,7 +349,7 @@ mod tests {
     fn euler_angles_precision() {
         let pi = std::f32::consts::PI;
         let ea1 = EulerAngles::new(pi * 0.2, pi * 0.2, 0.);
-        let r1 = Rotor::from_euler_angles(&ea1);
+        let r1 = Rotor::from(&ea1);
         let ea2 = r1.as_euler_angles();
 
         approx_eq(ea1.roll, ea2.roll);
@@ -357,9 +360,9 @@ mod tests {
     #[test]
     fn euler_angles() {
         // Make 3 rotors about the x, y, and z-axes.
-        let rx = Rotor::rotor(1., 1., 0., 0.);
-        let ry = Rotor::rotor(1., 0., 1., 0.);
-        let rz = Rotor::rotor(1., 0., 0., 1.);
+        let rx = Rotor::new(1., 1., 0., 0.);
+        let ry = Rotor::new(1., 0., 1., 0.);
+        let rz = Rotor::new(1., 0., 0., 1.);
 
         let r: Rotor = rx * ry * rz;
         let ea = r.as_euler_angles();
@@ -367,7 +370,7 @@ mod tests {
         approx_eq(ea.pitch, 1.);
         approx_eq(ea.yaw, 1.);
 
-        let r2 = Rotor::from_euler_angles(&ea);
+        let r2 = Rotor::from(&ea);
 
         #[repr(align(16))]
         struct ArrayAlignedTo16ByteBoundary {
@@ -388,7 +391,7 @@ mod tests {
 
     #[test]
     fn rotor_constrain() {
-        let mut r1 = Rotor::rotor(1., 2., 3., 4.);
+        let mut r1 = Rotor::new(1., 2., 3., 4.);
         let mut r2 = r1.constrained();
         assert_eq!(r1, r2);
 
@@ -400,7 +403,7 @@ mod tests {
     #[test]
     fn rotor_sqrt() {
         let pi = std::f32::consts::PI;
-        let r = Rotor::rotor(pi * 0.5, 1., 2., 3.);
+        let r = Rotor::new(pi * 0.5, 1., 2., 3.);
 
         let mut r2: Rotor = sqrt(r);
         r2 = r2 * r2;
