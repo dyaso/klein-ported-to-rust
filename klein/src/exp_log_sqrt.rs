@@ -232,7 +232,7 @@ mod tests {
         // Construct a motor from a translator and rotor
         let pi = std::f32::consts::PI;
         let r: Rotor = Rotor::new(pi * 0.5, 0.3, -3., 1.);
-        let t: Translator = Translator::translator(12., -2., 0.4, 1.);
+        let t: Translator = Translator::new(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
         let l: Line = log(m1);
         let m2: Motor = exp(l);
@@ -263,7 +263,7 @@ mod tests {
         // Construct a motor from a translator and rotor
         let pi = std::f32::consts::PI;
         let r: Rotor = Rotor::new(pi * 0.5, 0.3, -3., 1.);
-        let t: Translator = Translator::translator(12., -2., 0.4, 1.);
+        let t: Translator = Translator::new(12., -2., 0.4, 1.);
         let m1: Motor = r * t;
         let l: Line = log(m1);
         // Divide the motor action into three equal steps
@@ -284,11 +284,11 @@ mod tests {
     fn motor_blend() {
         let pi = std::f32::consts::PI;
         let r1: Rotor = Rotor::new(pi * 0.5, 0., 0., 1.);
-        let t1: Translator = Translator::translator(1., 0., 0., 1.);
+        let t1: Translator = Translator::new(1., 0., 0., 1.);
         let m1: Motor = r1 * t1;
 
         let r2 = Rotor::new(pi * 0.5, 0.3, -3., 1.);
-        let t2 = Translator::translator(12., -2., 0.4, 1.);
+        let t2 = Translator::new(12., -2., 0.4, 1.);
         let m2: Motor = r2 * t2;
 
         let motion: Motor = m2 * m1.reverse();
@@ -306,5 +306,37 @@ mod tests {
         approx_eq(result.e02(), m2.e02());
         approx_eq(result.e03(), m2.e03());
         approx_eq(result.e0123(), m2.e0123());
+    }
+
+    #[test]
+    fn translator_motor_log()   {
+        let t = Translator::new(1., 1., 2., 3.);
+        let m = Motor::from(t);
+        let l:Line = log(m);
+        assert_eq!(l.e01(), m.e01());
+        assert_eq!(l.e02(), m.e02());
+        assert_eq!(l.e03(), m.e03());
+    }
+
+    #[test]
+    fn ideal_motor_step() {
+        let r1 = Rotor::new(0., 0., 0., 1.);
+        let t1 = Translator::new(1., 0., 0., 1.);
+        let m1 = r1 * t1;//:Motor
+
+        let step:Line        = log(m1) / 4.;
+        let motor_step:Motor = exp(step);
+
+        // Applying motor_step 4 times should recover the translator t1
+        // (embedded) in m1
+        let result = motor_step * motor_step * motor_step * motor_step;//:Motor
+        approx_eq(result.scalar(), m1.scalar());
+        approx_eq(result.e12(), m1.e12());
+        approx_eq(result.e31(), m1.e31());
+        approx_eq(result.e23(), m1.e23());
+        approx_eq(result.e01(), m1.e01());
+        approx_eq(result.e02(), m1.e02());
+        approx_eq(result.e03(), m1.e03());
+        approx_eq(result.e0123(), m1.e0123());
     }
 }

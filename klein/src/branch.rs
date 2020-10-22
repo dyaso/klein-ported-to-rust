@@ -35,7 +35,6 @@ pub struct Branch {
     pub p1_: __m128,
 }
 
-
 common_operations!(Branch, p1_);
 
 impl Branch {

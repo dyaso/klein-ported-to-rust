@@ -338,11 +338,16 @@ fn main() {
         ..Default::default()
     };
 
-    let l: Line = origin() & Point::new(1.,0.,0.);
-    let m = Motor::from_screw_line(1.,2.,l);
+    // let origin & Point::new(1.,0.,0.);
+    // scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,0.,l)));
 
+    let origin = origin();
+    let l: Line = origin & Point::new(1.,0.,0.);
+    // let m = Motor::from_screw_line(2.*std::f32::consts::PI,0.,l);
+    let m = Motor::from_screw_line(0.,0.,l);
     let scene  = Rc::get_mut(&mut s.scene).unwrap();
-//FIXME    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,1.,l)));FIXME    
+    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,0.,l)));
+//    let m2 = Motor::from(Translator::new(1.,1.,0.,0.));
     scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
     // scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
     scene.push(Object::scaled_mesh_at(Mesh::tetrahedron(), 0.1, Motor::default()));

@@ -159,6 +159,7 @@ impl Motor {
     pub fn from_screw_line(ang_rad: f32, d: f32, l: Line) -> Motor {
         let mut log_m = Line::default();
         let mut out = Motor::default();
+        println!("LOGin {}",log_m);
         gp_dl(
             -ang_rad * 0.5,
             d * 0.5,
@@ -167,7 +168,10 @@ impl Motor {
             &mut log_m.p1_,
             &mut log_m.p2_,
         );
+        println!("OUT {}",out);
+        println!("LOG {}",log_m);
         simd_exp(log_m.p1_, log_m.p2_, &mut out.p1_, &mut out.p2_);
+        println!("OUT {}",out);
         out
     }
 
@@ -655,7 +659,7 @@ mod tests {
     fn construct_motor() {
         let pi = std::f32::consts::PI;
         let r = Rotor::new(pi * 0.5, 0., 0., 1.);
-        let t = Translator::translator(1., 0., 0., 1.);
+        let t = Translator::new(1., 0., 0., 1.);
         let mut m: Motor = r * t;
         let p1 = Point::new(1., 0., 0.);
         let mut p2: Point = m.apply_to(p1);

@@ -53,7 +53,7 @@ pub struct Translator {
 }
 
 impl Translator {
-    pub fn translator(delta: f32, x: f32, y: f32, z: f32) -> Translator {
+    pub fn new(delta: f32, x: f32, y: f32, z: f32) -> Translator {
         let norm = f32::sqrt(x * x + y * y + z * z);
         let inv_norm: f32 = 1. / norm;
 
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn translator_point() {
-        let t = Translator::translator(1., 0., 0., 1.);
+        let t = Translator::new(1., 0., 0., 1.);
         let p1 = Point::new(1., 0., 0.);
         let p2: Point = t.apply_to(p1);
         assert_eq!(p2.x(), 1.);
