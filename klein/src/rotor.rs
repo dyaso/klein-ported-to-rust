@@ -117,6 +117,60 @@ impl From<&EulerAngles> for Rotor {
     }
 }
 
+impl From<Rotor> for EulerAngles {
+    fn from(rotor: Rotor) -> EulerAngles {
+        let pi = std::f32::consts::PI;
+        let pi_2 = pi / 2.;
+
+        let mut ea = EulerAngles::default();
+
+        #[repr(align(16))]
+        struct ArrayAlignedTo16ByteBoundary {
+            mem: [f32; 4],
+        };
+
+        let mut buf = ArrayAlignedTo16ByteBoundary {
+            mem: <[f32; 4]>::default(),
+        };
+        rotor.store(&mut buf.mem[0]);
+        let test = buf.mem[1] * buf.mem[2] + buf.mem[3] * buf.mem[0];
+
+        if test > 0.4999 {
+            ea.roll = 2. * f32::atan2(buf.mem[1], buf.mem[0]);
+            ea.pitch = pi_2;
+            ea.yaw = 0.;
+            return ea
+        } else if test < -0.4999 {
+            ea.roll = -2. * f32::atan2(buf.mem[1], buf.mem[0]);
+            ea.pitch = -pi_2;
+            ea.yaw = 0.;
+            return ea
+        }
+
+        let buf1_2 = buf.mem[1] * buf.mem[1];
+        let buf2_2 = buf.mem[2] * buf.mem[2];
+        let buf3_2 = buf.mem[3] * buf.mem[3];
+
+        ea.roll = f32::atan2(
+            2. * (buf.mem[0] * buf.mem[1] + buf.mem[2] * buf.mem[3]),
+            1. - 2. * (buf1_2 + buf2_2),
+        );
+
+        let sinp = 2. * (buf.mem[0] * buf.mem[2] - buf.mem[1] * buf.mem[3]);
+        if f32::abs(sinp) > 1. {
+            ea.pitch = f32::copysign(pi_2, sinp);
+        } else {
+            ea.pitch = f32::asin(sinp);
+        }
+
+        ea.yaw = f32::atan2(
+            2. * (buf.mem[0] * buf.mem[3] + buf.mem[1] * buf.mem[2]),
+            1. - 2. * (buf2_2 + buf3_2),
+        );
+        ea
+    }
+}
+
 impl Rotor {
     /// Convenience constructor. Computes transcendentals and normalizes
     /// rotation axis.
@@ -166,57 +220,6 @@ impl Rotor {
         out
     }
 
-    pub fn as_euler_angles(self) -> EulerAngles {
-        let pi = std::f32::consts::PI;
-        let pi_2 = pi / 2.;
-
-        let mut ea = EulerAngles::default();
-
-        #[repr(align(16))]
-        struct ArrayAlignedTo16ByteBoundary {
-            mem: [f32; 4],
-        };
-
-        let mut buf = ArrayAlignedTo16ByteBoundary {
-            mem: <[f32; 4]>::default(),
-        };
-        self.store(&mut buf.mem[0]);
-        let test = buf.mem[1] * buf.mem[2] + buf.mem[3] * buf.mem[0];
-
-        if test > 0.4999 {
-            ea.roll = 2. * f32::atan2(buf.mem[1], buf.mem[0]);
-            ea.pitch = pi_2;
-            ea.yaw = 0.;
-            return ea;
-        } else if test < -0.4999 {
-            ea.roll = -2. * f32::atan2(buf.mem[1], buf.mem[0]);
-            ea.pitch = -pi_2;
-            ea.yaw = 0.;
-            return ea;
-        }
-
-        let buf1_2 = buf.mem[1] * buf.mem[1];
-        let buf2_2 = buf.mem[2] * buf.mem[2];
-        let buf3_2 = buf.mem[3] * buf.mem[3];
-
-        ea.roll = f32::atan2(
-            2. * (buf.mem[0] * buf.mem[1] + buf.mem[2] * buf.mem[3]),
-            1. - 2. * (buf1_2 + buf2_2),
-        );
-
-        let sinp = 2. * (buf.mem[0] * buf.mem[2] - buf.mem[1] * buf.mem[3]);
-        if f32::abs(sinp) > 1. {
-            ea.pitch = f32::copysign(pi_2, sinp);
-        } else {
-            ea.pitch = f32::asin(sinp);
-        }
-
-        ea.yaw = f32::atan2(
-            2. * (buf.mem[0] * buf.mem[3] + buf.mem[1] * buf.mem[2]),
-            1. - 2. * (buf2_2 + buf3_2),
-        );
-        ea
-    }
     /// Store m128 contents into an array of 4 floats
     pub fn store(self, out: &mut f32) {
         unsafe {
@@ -350,7 +353,7 @@ mod tests {
         let pi = std::f32::consts::PI;
         let ea1 = EulerAngles::new(pi * 0.2, pi * 0.2, 0.);
         let r1 = Rotor::from(&ea1);
-        let ea2 = r1.as_euler_angles();
+        let ea2 = EulerAngles::from(r1);
 
         approx_eq(ea1.roll, ea2.roll);
         approx_eq(ea1.pitch, ea2.pitch);
@@ -365,7 +368,7 @@ mod tests {
         let rz = Rotor::new(1., 0., 0., 1.);
 
         let r: Rotor = rx * ry * rz;
-        let ea = r.as_euler_angles();
+        let ea = EulerAngles::from(r);
         approx_eq(ea.roll, 1.);
         approx_eq(ea.pitch, 1.);
         approx_eq(ea.yaw, 1.);

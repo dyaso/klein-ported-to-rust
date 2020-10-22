@@ -37,6 +37,17 @@ pub fn simd_exp(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) 
     // (a1^2 + a2^2 + a3^2) - 2(a1 b1 + a2 b2 + a3 b3) e0123
 
     unsafe {
+        // Check if the bivector we're exponentiating is ideal
+        let mask = _mm_movemask_ps(_mm_cmpeq_ps(a, _mm_setzero_ps()));
+
+        if mask == 0xf {
+            // When exponentiating an ideal line, the terms past the linear
+            // term in the Taylor series expansion vanishes
+            *p1_out = _mm_set_ss(1.);
+            *p2_out = b;
+            return
+        }
+
         // Broadcast dot(a, a) ignoring the scalar component to all components
         // of a2
         let a2 = hi_dp_bc(a, a);
@@ -102,9 +113,10 @@ pub fn simd_exp(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) 
         sincosu[1] = f32::cos(uv[0]);
 
         let sinu = _mm_set1_ps(sincosu[0]);
+
         *p1_out = _mm_add_ps(
             _mm_set_ps(0., 0., 0., sincosu[1]),
-            _mm_mul_ps(sinu, norm_real),
+            _mm_mul_ps(sinu, norm_real)
         );
 
         // The second partition has contributions from both the real and ideal
@@ -136,11 +148,31 @@ pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128
     unsafe {
         let bv_mask = _mm_set_ps(1., 1., 1., 0.);
         let a = _mm_mul_ps(bv_mask, p1);
+//        let b = _mm_mul_ps(bv_mask, p2);
+
+
+        // Early out if we're taking the log of a motor without any rotation
+        let mask = _mm_movemask_ps(_mm_cmpeq_ps(a, _mm_setzero_ps()));
+
+            println!("set rotation");
+        if mask == 0xf {
+            println!("no rotation");
+            *p1_out = _mm_setzero_ps();
+            *p2_out = p2;
+            return;
+        }
+
         let b = _mm_mul_ps(bv_mask, p2);
+
+
+
+
+
+
+
 
         // Next, we need to compute the norm as in the exponential.
         let a2 = hi_dp_bc(a, a);
-        // TODO: handle case when a2 is 0
         let ab = hi_dp_bc(a, b);
         let a2_sqrt_rcp = rsqrt_nr1(a2);
         let s = _mm_mul_ps(a2, a2_sqrt_rcp);

@@ -594,7 +594,7 @@ use crate::exp_log_sqrt::sqrt;
 
     #[test]
     fn multivector_gp_translator_div_translator() {
-        let t1 = Translator::translator(3., 1., -2., 3.);
+        let t1 = Translator::new(3., 1., -2., 3.);
         let t2: Translator = t1 / t1;
         assert_eq!(t2.e01(), 0.);
         assert_eq!(t2.e02(), 0.);
