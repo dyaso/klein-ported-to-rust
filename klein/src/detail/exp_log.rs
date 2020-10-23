@@ -45,7 +45,7 @@ pub fn simd_exp(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) 
             // term in the Taylor series expansion vanishes
             *p1_out = _mm_set_ss(1.);
             *p2_out = b;
-            return
+            return;
         }
 
         // Broadcast dot(a, a) ignoring the scalar component to all components
@@ -116,7 +116,7 @@ pub fn simd_exp(a: __m128, b: __m128, p1_out: &mut __m128, p2_out: &mut __m128) 
 
         *p1_out = _mm_add_ps(
             _mm_set_ps(0., 0., 0., sincosu[1]),
-            _mm_mul_ps(sinu, norm_real)
+            _mm_mul_ps(sinu, norm_real),
         );
 
         // The second partition has contributions from both the real and ideal
@@ -148,13 +148,12 @@ pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128
     unsafe {
         let bv_mask = _mm_set_ps(1., 1., 1., 0.);
         let a = _mm_mul_ps(bv_mask, p1);
-//        let b = _mm_mul_ps(bv_mask, p2);
-
+        //        let b = _mm_mul_ps(bv_mask, p2);
 
         // Early out if we're taking the log of a motor without any rotation
         let mask = _mm_movemask_ps(_mm_cmpeq_ps(a, _mm_setzero_ps()));
 
-            println!("set rotation");
+        println!("set rotation");
         if mask == 0xf {
             println!("no rotation");
             *p1_out = _mm_setzero_ps();
@@ -163,13 +162,6 @@ pub fn simd_log(p1: __m128, p2: __m128, p1_out: &mut __m128, p2_out: &mut __m128
         }
 
         let b = _mm_mul_ps(bv_mask, p2);
-
-
-
-
-
-
-
 
         // Next, we need to compute the norm as in the exponential.
         let a2 = hi_dp_bc(a, a);

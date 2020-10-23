@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::*;//{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::*; //{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 /// Klein provides three line classes: "line", "branch", and "ideal_line". The
 /// line class represents a full six-coordinate bivector. The branch contains
@@ -10,10 +10,9 @@ use crate::detail::sse::*;//{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 /// of two planes or join of two points (or carefully selected Plücker
 /// coordinates), it will be a Euclidean line (factorizable as the meet of two
 /// vectors).
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign, Add, Sub, Div, Mul};
-
-use crate::{IdealLine, Branch};
+use crate::{Branch, IdealLine};
 
 // p1: (1, e12, e31, e23)
 // p2: (e0123, e01, e02, e03)

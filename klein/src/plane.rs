@@ -37,15 +37,15 @@ impl fmt::Display for Plane {
 // type Plane = __m128
 
 impl Plane {
-pub fn basis_e1() -> Plane {
-    Plane::new(1., 0., 0., 1.)
-}
-pub fn basis_e2() -> Plane {
-    Plane::new(0., 1., 0., 1.)
-}
-pub fn basis_e3() -> Plane {
-    Plane::new(0., 0., 1., 1.)
-}
+    pub fn basis_e1() -> Plane {
+        Plane::new(1., 0., 0., 1.)
+    }
+    pub fn basis_e2() -> Plane {
+        Plane::new(0., 1., 0., 1.)
+    }
+    pub fn basis_e3() -> Plane {
+        Plane::new(0., 0., 1., 1.)
+    }
 
     /// The constructor performs the rearrangement so the plane can be specified
     /// in the familiar form: ax + by + cz + d
@@ -65,7 +65,6 @@ impl From<&f32> for Plane {
         }
     }
 }
-
 
 impl Plane {
     /// Normalize this plane $p$ such that $p \cdot p = 1$.
@@ -103,7 +102,6 @@ impl Plane {
             p0_: unsafe { _mm_loadu_ps(data) },
         }
     }
-
 
     /// Compute the plane norm, which is often used to compute distances
     /// between points and lines.
@@ -234,8 +232,6 @@ impl ApplyTo<Point> for Plane {
 }
 
 impl Plane {
-
-
     get_basis_blade_fn!(e1, neg1, p0_, 1);
     get_basis_blade_fn!(e2, neg2, p0_, 2);
     get_basis_blade_fn!(e3, neg3, p0_, 3);

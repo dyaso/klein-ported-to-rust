@@ -2,7 +2,7 @@
 // (rust builds all examples when you run `cargo test`, which was showing things down.)
 // please see the `demo` directory for more realistic examples
 
-use klein::{Plane, Point, Rotor, Line, Motor, ApplyTo};
+use klein::{Plane, Point, Rotor, ApplyTo};// Line, Motor,
 
 use std::f32::consts::PI;
 

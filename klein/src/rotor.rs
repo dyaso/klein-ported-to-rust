@@ -2,7 +2,7 @@
 use std::arch::x86_64::*;
 
 use crate::detail::sandwich::{sw012, sw_mm_three, sw_mm_two};
-use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{dp_bc, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 use crate::util::ApplyTo;
 use crate::{Branch, Line, Plane, Point};
@@ -65,7 +65,7 @@ impl EulerAngles {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Rotor {
-    pub p1_: __m128
+    pub p1_: __m128,
 }
 
 common_operations!(Rotor, p1_);
@@ -92,7 +92,7 @@ impl fmt::Display for Rotor {
 
 impl From<&EulerAngles> for Rotor {
     fn from(ea: &EulerAngles) -> Self {
-//    pub fn from_euler_angles(ea: &EulerAngles) -> Rotor {
+        //    pub fn from_euler_angles(ea: &EulerAngles) -> Rotor {
         // https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles#cite_note-3
         let half_yaw: f32 = ea.yaw * 0.5;
         let half_pitch: f32 = ea.pitch * 0.5;
@@ -139,12 +139,12 @@ impl From<Rotor> for EulerAngles {
             ea.roll = 2. * f32::atan2(buf.mem[1], buf.mem[0]);
             ea.pitch = pi_2;
             ea.yaw = 0.;
-            return ea
+            return ea;
         } else if test < -0.4999 {
             ea.roll = -2. * f32::atan2(buf.mem[1], buf.mem[0]);
             ea.pitch = -pi_2;
             ea.yaw = 0.;
-            return ea
+            return ea;
         }
 
         let buf1_2 = buf.mem[1] * buf.mem[1];
@@ -318,7 +318,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyTo, EulerAngles, Line, Point, Rotor, sqrt};
+    use crate::{sqrt, ApplyTo, EulerAngles, Line, Point, Rotor};
 
     #[test]
     fn rotor_line() {

@@ -122,16 +122,14 @@ impl Default for Motor {
     fn default() -> Motor {
         unsafe {
             Motor {
-                p1_: _mm_set_ss(1.),//_mm_setzero_ps(),
+                p1_: _mm_set_ss(1.), //_mm_setzero_ps(),
                 p2_: _mm_setzero_ps(),
             }
         }
     }
-
 }
 
 impl Motor {
-
     /// Direct initialization from components. A more common way of creating a
     /// motor is to take a product between a rotor and a translator.
     /// The arguments coorespond to the multivector
@@ -587,7 +585,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{ApplyTo, Line, Motor, Plane, Point, Rotor, Translator, log, sqrt};
+    use crate::{log, sqrt, ApplyTo, Line, Motor, Plane, Point, Rotor, Translator};
 
     #[test]
     fn motor_plane() {

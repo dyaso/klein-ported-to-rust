@@ -11,3 +11,8 @@ C++'s multiple constructors per class are replaced by `default()`, `new( ... )` 
 
 Rust doesn't let you overload the function call operator, so if you want to e.g. apply a rotation please say `let rotated = rotation.`**`apply_to`**`(something);` instead.
 
+The `Point` struct has extra methods `scale` and `scaled` (former mutates in place, latter returns new Point) which perform coordinate scaling.
+
+The `Mat4x4` struct has a `perspective` projection matrix constructor method.
+
+

@@ -180,7 +180,6 @@ impl Mul<Branch> for Branch {
     }
 }
 
-
 /// The product of a dual number and a line effectively weights the line with a
 /// rotational and translational quantity. Subsequent exponentiation will
 /// produce a motor along the screw axis of line $b$ with rotation and
@@ -399,8 +398,8 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
+    use crate::exp_log_sqrt::sqrt;
     use crate::{ApplyTo, Branch, Line, Motor, Plane, Point, Rotor, Translator};
-use crate::exp_log_sqrt::sqrt;
     #[test]
     fn multivector_gp_plane_plane() {
         // d*e_0 + a*e_1 + b*e_2 + c*e_3

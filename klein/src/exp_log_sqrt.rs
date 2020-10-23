@@ -28,12 +28,11 @@ use crate::{Branch, IdealLine, Line, Motor, Rotor, Translator};
 /// and then re-exponentiate the result. Using this technique, `exp(n * log(A))`
 /// is equivalent to $\mathbf{A}^n$.
 
-
 pub trait Log<O> {
     fn log(self) -> O;
 }
 
-pub fn log<I: Log<O>, O>(input:I) -> O {
+pub fn log<I: Log<O>, O>(input: I) -> O {
     input.log()
 }
 
@@ -56,7 +55,7 @@ pub trait Exp<O> {
     fn exp(self) -> O;
 }
 
-pub fn exp<I: Exp<O>, O>(input:I) -> O {
+pub fn exp<I: Exp<O>, O>(input: I) -> O {
     input.exp()
 }
 /// Exponentiate a line to produce a motor that posesses this line
@@ -175,13 +174,13 @@ pub trait Sqrt<O> {
     fn sqrt(self) -> O;
 }
 
-pub fn sqrt<I: Sqrt<O>, O>(input:I) -> O {
+pub fn sqrt<I: Sqrt<O>, O>(input: I) -> O {
     input.sqrt()
 }
 
 /// Compute the square root of the provided motor $m$.
 impl Sqrt<Motor> for Motor {
-// impl Motor {
+    // impl Motor {
     #[inline]
     fn sqrt(self) -> Motor {
         unsafe {
@@ -200,7 +199,7 @@ mod tests {
         assert!((a - b).abs() < 1e-6)
     }
 
-    use crate::{Branch, Line, Motor, Rotor, Translator, sqrt, log, exp};
+    use crate::{exp, log, sqrt, Branch, Line, Motor, Rotor, Translator};
 
     #[test]
     fn rotor_exp_log() {
@@ -245,7 +244,6 @@ mod tests {
         approx_eq(m1.e02(), m2.e02());
         approx_eq(m1.e03(), m2.e03());
         approx_eq(m1.e0123(), m2.e0123());
-
 
         let m3: Motor = sqrt(m1) * sqrt(m1);
         approx_eq(m1.scalar(), m3.scalar());
@@ -309,10 +307,10 @@ mod tests {
     }
 
     #[test]
-    fn translator_motor_log()   {
+    fn translator_motor_log() {
         let t = Translator::new(1., 1., 2., 3.);
         let m = Motor::from(t);
-        let l:Line = log(m);
+        let l: Line = log(m);
         assert_eq!(l.e01(), m.e01());
         assert_eq!(l.e02(), m.e02());
         assert_eq!(l.e03(), m.e03());
@@ -322,14 +320,14 @@ mod tests {
     fn ideal_motor_step() {
         let r1 = Rotor::new(0., 0., 0., 1.);
         let t1 = Translator::new(1., 0., 0., 1.);
-        let m1 = r1 * t1;//:Motor
+        let m1 = r1 * t1; //:Motor
 
-        let step:Line        = log(m1) / 4.;
-        let motor_step:Motor = exp(step);
+        let step: Line = log(m1) / 4.;
+        let motor_step: Motor = exp(step);
 
         // Applying motor_step 4 times should recover the translator t1
         // (embedded) in m1
-        let result = motor_step * motor_step * motor_step * motor_step;//:Motor
+        let result = motor_step * motor_step * motor_step * motor_step; //:Motor
         approx_eq(result.scalar(), m1.scalar());
         approx_eq(result.e12(), m1.e12());
         approx_eq(result.e31(), m1.e31());

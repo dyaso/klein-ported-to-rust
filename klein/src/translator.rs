@@ -1,11 +1,11 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{rcp_nr1};
 use crate::detail::sandwich::{sw02, sw32, sw_l2};
 
 use crate::util::ApplyTo;
-use crate::{IdealLine, Line, Plane, Point};
+use crate::{Line, Plane, Point};
 
 /// \defgroup translator Translators
 ///

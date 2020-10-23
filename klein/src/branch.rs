@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{dp_bc, hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{hi_dp, hi_dp_bc, rcp_nr1, rsqrt_nr1};
 
 use std::ops::Neg;
 
@@ -38,7 +38,6 @@ pub struct Branch {
 common_operations!(Branch, p1_);
 
 impl Branch {
-
     /// Construct the branch as the following multivector:
     ///
     /// $$a \mathbf{e}_{23} + b\mathbf{e}_{31} + c\mathbf{e}_{12}$$
@@ -97,9 +96,6 @@ impl Branch {
         out
     }
 }
-
-
-
 
 impl Mul<Branch> for f32 {
     type Output = Branch;

@@ -1,7 +1,7 @@
 #![cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::detail::sse::{hi_dp_bc, rcp_nr1, rsqrt_nr1};
+use crate::detail::sse::{rcp_nr1};
 
 pub type Element = __m128;
 
@@ -26,8 +26,9 @@ pub struct Point {
 //     }
 // }
 
-
-pub fn origin() -> Point { Point::new(0.,0.,0.) }
+pub fn origin() -> Point {
+    Point::new(0., 0., 0.)
+}
 
 // // trait AsRef<T: ?Sized> {
 // //     fn as_ref(&self) -> &T;
@@ -61,22 +62,20 @@ impl fmt::Display for Point {
 // }
 
 impl Point {
-
-    pub fn scale(&mut self, scale :f32) {
+    pub fn scale(&mut self, scale: f32) {
         unsafe {
             self.p3_ = _mm_mul_ss(
-                            _mm_mul_ps(self.p3_, _mm_set1_ps(scale)),
-                            _mm_set_ss(1./scale));
+                _mm_mul_ps(self.p3_, _mm_set1_ps(scale)),
+                _mm_set_ss(1. / scale),
+            );
         }
     }
 
-
-    pub fn scaled(self, scale :f32) -> Point {
+    pub fn scaled(self, scale: f32) -> Point {
         let mut out = Point::from(self.p3_);
         out.scale(scale);
         out
     }
-
 
     /// Create a normalized direction
     pub fn direction(x: f32, y: f32, z: f32) -> Point {
@@ -107,12 +106,11 @@ impl Point {
             //     self.p3_ = _mm_mul_ps(self.p3_, tmp);
             // } else {
             //     // it's a regular point
-                let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
-                self.p3_ = _mm_mul_ps(self.p3_, tmp);
+            let tmp = rcp_nr1(_mm_shuffle_ps(self.p3_, self.p3_, 0));
+            self.p3_ = _mm_mul_ps(self.p3_, tmp);
             // }
         }
     }
-
 
     pub fn invert(&mut self) {
         unsafe {

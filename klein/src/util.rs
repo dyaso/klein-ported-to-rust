@@ -1,4 +1,3 @@
-
 pub trait ApplyTo<O> {
     fn apply_to(self, other: O) -> O;
 }
@@ -10,6 +9,7 @@ pub trait ApplyToMany<O> {
 #[macro_use]
 macro_rules! get_basis_blade_fn {
     ($name:ident, $reverse_name:ident, $component:ident, $index:expr) => {
+        #[allow(unused_mut)]
         pub fn $name(self) -> f32 {
             let mut out = <[f32; 4]>::default();
             unsafe {
@@ -25,9 +25,7 @@ macro_rules! get_basis_blade_fn {
 }
 
 macro_rules! common_operations {
-
-    ($object:ty, $component:ident) 
-    => {
+    ($object:ty, $component:ident) => {
         impl From<__m128> for $object {
             fn from(xmm: __m128) -> Self {
                 Self { $component: xmm }
@@ -35,21 +33,23 @@ macro_rules! common_operations {
         }
 
         impl From<$object> for __m128 {
-            fn from(me :$object) -> Self {
+            fn from(me: $object) -> Self {
                 me.$component
             }
         }
 
-
         impl Default for $object {
             fn default() -> Self {
                 unsafe {
-                    Self {$component: _mm_setzero_ps()}
+                    Self {
+                        $component: _mm_setzero_ps(),
+                    }
                 }
             }
         }
-        use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign, Add, Sub, Div, Mul};
-    
+        #[allow(unused_imports)]
+        use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+
         impl<T: Into<f32>> MulAssign<T> for $object {
             #[inline]
             fn mul_assign(&mut self, s: T) {
@@ -59,7 +59,6 @@ macro_rules! common_operations {
             }
         }
 
-
         impl AddAssign for $object {
             #[inline]
             fn add_assign(&mut self, rhs: Self) {
@@ -68,14 +67,14 @@ macro_rules! common_operations {
                 }
             }
         }
-        
+
         impl SubAssign for $object {
             #[inline]
             fn sub_assign(&mut self, rhs: Self) {
                 unsafe { self.$component = _mm_sub_ps(self.$component, rhs.$component) }
             }
         }
-        
+
         impl Add for $object {
             type Output = $object;
             #[inline]
@@ -92,14 +91,11 @@ macro_rules! common_operations {
             }
         }
 
-
         impl<T: Into<f32>> Mul<T> for $object {
             type Output = Self;
             #[inline]
             fn mul(self, s: T) -> Self {
-                unsafe {
-                    Self::from(_mm_mul_ps(self.$component, _mm_set1_ps(s.into())))
-                }
+                unsafe { Self::from(_mm_mul_ps(self.$component, _mm_set1_ps(s.into()))) }
             }
         }
 
@@ -111,17 +107,16 @@ macro_rules! common_operations {
                 }
             }
         }
-        
-
 
         impl $object {
             #[inline]
-            pub fn normalized(self) -> Self        {
+            #[allow(unused_mut)]
+            pub fn normalized(self) -> Self {
                 let mut out = Self::from(self.$component);
                 out.normalize();
                 out
             }
-    
+
             #[inline]
             pub fn reverse(self) -> Self {
                 unsafe {
@@ -130,8 +125,7 @@ macro_rules! common_operations {
                 }
             }
         }
-
-    }
+    };
 }
 
 #[cfg(test)]

@@ -38,7 +38,7 @@ struct CustomWidget {
 
 impl CustomWidget {
     fn to_druid_point(&self, p: &Point) -> DruidPoint {
-        let pn = p.normalized();
+        let pn = p;//.normalized();
         DruidPoint::new(
             (pn.x() as f64 - self.left) / self.scale,
             (self.top - pn.y() as f64) / self.scale,
@@ -233,7 +233,8 @@ impl Widget<State> for CustomWidget {
                         Point::from(data.perspective.apply_to(
                             __m128::from(
                                 data.camera_transform.apply_to(
-                                r.apply_to(m.apply_to(obj.mesh.vertices[*v_idx].scaled(s))))))));
+                                r.apply_to(m.apply_to(obj.mesh.vertices[*v_idx].scaled(s)))))))
+                        .normalized());
                 }
                 faces.push(verts);
             }
@@ -378,7 +379,7 @@ fn main() {
 
     // let origin & Point::new(1.,0.,0.);
     // scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,0.,l)));
-println!("pers {:?}", s.perspective);
+
     let origin = origin();
     // let m = Motor::from_screw_line(2.*std::f32::consts::PI,0.,l);
     let l: Line = origin & Point::new(1.,0.,0.);
