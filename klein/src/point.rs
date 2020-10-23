@@ -16,6 +16,17 @@ pub struct Point {
     pub p3_: __m128,
 }
 
+// impl From<__m128> for Point {
+//     fn from(xmm: __m128) -> Self {
+//         unsafe {
+//             Motor {
+//                 p3_: xmm,
+//             }
+//         }
+//     }
+// }
+
+
 pub fn origin() -> Point { Point::new(0.,0.,0.) }
 
 // // trait AsRef<T: ?Sized> {
@@ -50,6 +61,23 @@ impl fmt::Display for Point {
 // }
 
 impl Point {
+
+    pub fn scale(&mut self, scale :f32) {
+        unsafe {
+            self.p3_ = _mm_mul_ss(
+                            _mm_mul_ps(self.p3_, _mm_set1_ps(scale)),
+                            _mm_set_ss(1./scale));
+        }
+    }
+
+
+    pub fn scaled(self, scale :f32) -> Point {
+        let mut out = Point::from(self.p3_);
+        out.scale(scale);
+        out
+    }
+
+
     /// Create a normalized direction
     pub fn direction(x: f32, y: f32, z: f32) -> Point {
         unsafe {

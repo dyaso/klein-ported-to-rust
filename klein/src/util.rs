@@ -97,7 +97,9 @@ macro_rules! common_operations {
             type Output = Self;
             #[inline]
             fn mul(self, s: T) -> Self {
-                unsafe { Self::from(_mm_mul_ps(self.$component, _mm_set1_ps(s.into()))) }
+                unsafe {
+                    Self::from(_mm_mul_ps(self.$component, _mm_set1_ps(s.into())))
+                }
             }
         }
 

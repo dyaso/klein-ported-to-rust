@@ -5,7 +5,7 @@ use crate::{ApplyTo, Motor};
 
 /// 4x4 column-major matrix (used for converting rotors/motors to matrix form to
 /// upload to shaders).
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Mat4x4 {
     Cols([__m128; 4]),
     Data([f32; 16]),
@@ -16,11 +16,53 @@ impl Default for Mat4x4 {
         unsafe {
             Mat4x4::Cols {
                 0: [
-                    _mm_setzero_ps(),
-                    _mm_setzero_ps(),
-                    _mm_setzero_ps(),
-                    _mm_setzero_ps(),
+
+
+                // args run low mem -> high mem ?
+                    _mm_set_ps(0., 0., 1., 1.),
+                    _mm_set_ps(0., 0., 0.5, 0.),
+                    _mm_set_ps(0., 1., 0., 0.),
+                    _mm_set_ps(1., 0., 0., 0.),
+
+                    // this matrix is weird because of the order in memory of the floats, and the w component being next to x instead of z or something
+                    // anyway, have mapped these elements through trial and error:
+
+                    // T_z  T_y  T_x   1
+                    //  0    0   S_x   0
+                    //  0   S_y   0    0
+                    // S_z   0    0    0
+
+                    // it's like it's been transposed, then vertically mirrored, then moved
                 ],
+            }
+        }
+    }
+}
+
+impl Mat4x4 {
+    pub fn perspective(near: f32, far: f32, left: f32, right: f32, top: f32, bottom: f32) -> Mat4x4 {
+        let width = right - left;
+        let height = top - bottom;
+        let depth = far - near;
+        let a = 2. * near / width;
+        let b = - (right + left) / width;
+        let c = 2. * near / height;
+        let d = - (top + bottom) / height;
+        let e = far / depth;
+        let f = - far * near / depth;
+
+        unsafe {
+            Mat4x4::Cols {
+                0: [
+                    _mm_set_ps( f, 0., 0., 0.),
+                    _mm_set_ps(0., 0.,  a, 0.),
+                    _mm_set_ps(0.,  c, 0., 0.),
+                    _mm_set_ps( e,  d,  b, 1.),
+                    // _mm_set_ps(0., 0., 0., 0.),
+                    // _mm_set_ps(0., 0., 0., 0.),
+                    // _mm_set_ps(0., 0., 0., 0.),
+                    // _mm_set_ps(0., 0., 0., 0.),
+                ]
             }
         }
     }

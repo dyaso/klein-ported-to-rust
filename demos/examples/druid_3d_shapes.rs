@@ -1,3 +1,6 @@
+#![cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+
 use druid::kurbo::{BezPath};
 use druid::piet::{FontFamily, FontStyle, ImageFormat, InterpolationMode};
 
@@ -8,6 +11,7 @@ use druid::{
     Affine, AppLauncher, ArcStr, Color, Data, FontDescriptor, LocalizedString, MouseEvent,
     Point as DruidPoint, TextLayout, WindowDesc,
 };
+
 
 use klein::*;
 
@@ -34,7 +38,7 @@ struct CustomWidget {
 
 impl CustomWidget {
     fn to_druid_point(&self, p: &Point) -> DruidPoint {
-        let pn = p; //.normalized();
+        let pn = p.normalized();
         DruidPoint::new(
             (pn.x() as f64 - self.left) / self.scale,
             (self.top - pn.y() as f64) / self.scale,
@@ -121,6 +125,8 @@ struct State {
     mouse_over: Option<usize>,
     scene: Rc<Vec<Object>>,
     time: f64,
+    perspective: Rc<Mat4x4>,
+    camera_transform: Rc<Motor>,
 }
 
 impl Widget<State> for CustomWidget {
@@ -185,6 +191,8 @@ impl Widget<State> for CustomWidget {
         bc.max()
     }
 
+    
+
     // The paint method gets called last, after an event flow.
     // It goes event -> update -> layout -> paint, and each method can influence the next.
     // Basically, anything that changes the appearance of a widget causes a paint.
@@ -206,7 +214,8 @@ impl Widget<State> for CustomWidget {
         // and we only want to clear this widget's area.
         let fill_color = Color::rgba8(0xa3, 0xa3, 0xa3, 0xFF);
 
-        let r = Rotor::new(data.time as f32, 1., -1., 0.5);
+        // let r = Rotor::new(data.time as f32, 1., -1., 0.5);
+        let r = Rotor::new(data.time as f32, 0., 1., 0.);
 
 
 
@@ -218,10 +227,14 @@ impl Widget<State> for CustomWidget {
             let s = obj.scale;
             for face in obj.mesh.faces.iter() {
                 let mut verts = Vec::<Point>::new();
-                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[0]])));
-                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[1]])));
-                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[2]])));
-                verts.push(r.apply_to(m.apply_to(s * obj.mesh.vertices[face[0]])));
+                for v_idx in face.iter() {
+
+                    verts.push(
+                        Point::from(data.perspective.apply_to(
+                            __m128::from(
+                                data.camera_transform.apply_to(
+                                r.apply_to(m.apply_to(obj.mesh.vertices[*v_idx].scaled(s))))))));
+                }
                 faces.push(verts);
             }
         }
@@ -239,9 +252,12 @@ impl Widget<State> for CustomWidget {
         for f in faces.iter() {
             let mut path = BezPath::new();
             path.move_to(self.to_druid_point(&f[0]));
-            path.line_to(self.to_druid_point(&f[1]));
-            path.line_to(self.to_druid_point(&f[2]));
-            path.line_to(self.to_druid_point(&f[0]));
+            for p in f.iter().skip(1) {
+                path.line_to(self.to_druid_point(p));
+            }
+                path.line_to(self.to_druid_point(&f[0]));
+            // path.line_to(self.to_druid_point(&f[2]));
+//            path.line_to(self.to_druid_point(&f[0]));
             let stroke_color = Color::rgb8(240, 240, 240);
             ctx.stroke(path, &stroke_color, 4.0);
         }
@@ -303,6 +319,26 @@ impl Mesh {
     }
 }
 
+impl Mesh {
+    fn cube() -> Self {
+        let a = Point::new(1., 1., 1.);
+        let b = Point::new(1., 1., -1.);
+        let c = Point::new(-1., 1., -1.);
+        let d = Point::new(-1., 1., 1.);
+        let e = Point::new(1., -1., 1.);
+        let f = Point::new(1., -1., -1.);
+        let g = Point::new(-1., -1., -1.);
+        let h = Point::new(-1., -1., 1.);
+
+        let vertices = vec![a, b, c, d, e, f, g, h];
+        let position = Motor::default();
+
+        Self {vertices, faces:
+            vec![vec![0, 1, 2, 3], vec![4, 5, 6, 7], vec![0,4], vec![1,5], vec![2,6], vec![3,7], ]
+        }
+    }
+}
+
 impl From<Mesh> for Object {
     fn from(mesh: Mesh) -> Self {
         Object {
@@ -335,22 +371,28 @@ fn main() {
         LocalizedString::new("custom-widget-demo-window-title").with_placeholder("klein rust demo"),
     );
     let mut s = State {
+        perspective: Rc::new(Mat4x4::perspective(10., 50., -3., 3., -3., 3.)),
+        camera_transform: Rc::new(Motor::from(Translator::new(-4., 0., 0., 1.))),
         ..Default::default()
     };
 
     // let origin & Point::new(1.,0.,0.);
     // scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,0.,l)));
-
+println!("pers {:?}", s.perspective);
     let origin = origin();
-    let l: Line = origin & Point::new(1.,0.,0.);
     // let m = Motor::from_screw_line(2.*std::f32::consts::PI,0.,l);
+    let l: Line = origin & Point::new(1.,0.,0.);
     let m = Motor::from_screw_line(0.,0.,l);
     let scene  = Rc::get_mut(&mut s.scene).unwrap();
-    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(0.,0.,l)));
+    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from_screw_line(1.,0.,l)));
 //    let m2 = Motor::from(Translator::new(1.,1.,0.,0.));
-    scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
+    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from(Translator::new(1.,0.,1.,0.))));
     // scene.push(Object::mesh_at(Mesh::tetrahedron(), m));
     scene.push(Object::scaled_mesh_at(Mesh::tetrahedron(), 0.1, Motor::default()));
+    scene.push(Object::scaled_mesh_at(Mesh::tetrahedron(), 0.5, Motor::default()));
+    scene.push(Object::scaled_mesh_at(Mesh::tetrahedron(), 0.5, Motor::from(Translator::new(1.,1.,0.,0.))));
+    scene.push(Object::mesh_at(Mesh::tetrahedron(), Motor::from(Translator::new(2.,3.,1.5,0.))));
+    scene.push(Object::mesh_at(Mesh::cube(), Motor::from(Translator::new(2.,-3.,0.,0.))));
 
     let ps = Rc::get_mut(&mut s.points).unwrap();
     ps.push(Point::new(0., 0.6, 0.));

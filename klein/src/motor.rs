@@ -118,9 +118,8 @@ impl From<Translator> for Motor {
     }
 }
 
-
-impl Motor {
-    pub fn default() -> Motor {
+impl Default for Motor {
+    fn default() -> Motor {
         unsafe {
             Motor {
                 p1_: _mm_set_ss(1.),//_mm_setzero_ps(),
@@ -128,6 +127,10 @@ impl Motor {
             }
         }
     }
+
+}
+
+impl Motor {
 
     /// Direct initialization from components. A more common way of creating a
     /// motor is to take a product between a rotor and a translator.

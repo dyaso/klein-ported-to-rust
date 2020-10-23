@@ -864,13 +864,13 @@ pub fn sw312_four(translate: bool, a: __m128, b: __m128, c: __m128) -> __m128 {
 // 			// 2(b3 c1 - b2 c0 - b0 c2 - b1 c3) e013 +
 // 			// 2(b1 c2 - b3 c0 - b0 c3 - b2 c1) e021
 
-// 			__m128 tmp = _mm_mul_ps(b, _mm_swizzle_ps(c, 0 /* 0, 0, 0, 0 */));
-// 			tmp = _mm_add_ps(tmp, _mm_mul_ps(_mm_swizzle_ps(b, 0 /* 0, 0, 0, 0 */), c));
+// 			__m128 tmp = _mm_mul_ps(b, _mm_shuffle_ps(c,c, 0 /* 0, 0, 0, 0 */));
+// 			tmp = _mm_add_ps(tmp, _mm_mul_ps(_mm_shuffle_ps(b,b, 0 /* 0, 0, 0, 0 */), c));
 // 			tmp = _mm_add_ps(
 // 				 tmp,
-// 				 _mm_mul_ps(_mm_swizzle_ps(b, 156 /* 2, 1, 3, 0 */), _mm_swizzle_ps(c, 120 /* 1, 3, 2, 0 */)));
+// 				 _mm_mul_ps(_mm_shuffle_ps(b,b, 156 /* 2, 1, 3, 0 */), _mm_shuffle_ps(c,c, 120 /* 1, 3, 2, 0 */)));
 // 			tmp = _mm_sub_ps(
-// 				 _mm_mul_ps(_mm_swizzle_ps(b, 120 /* 1, 3, 2, 0 */), _mm_swizzle_ps(c, 156 /* 2, 1, 3, 0 */)),
+// 				 _mm_mul_ps(_mm_shuffle_ps(b,b, 120 /* 1, 3, 2, 0 */), _mm_shuffle_ps(c,c, 156 /* 2, 1, 3, 0 */)),
 // 				 tmp);
 // 			tmp = _mm_mul_ps(tmp, _mm_set_ps(2f, 2f, 2f, 0f));
 
